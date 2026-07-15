@@ -43,11 +43,14 @@ def routes(db: Session = Depends(get_db)):
         # passthrough = the VM terminates its own TLS: the edge SNI-passes :443 straight to the
         # VM (never decrypts) and redirects :80→https. Otherwise the edge terminates and proxies
         # to the VM's :80 (legacy behaviour). One flag drives the agent's layer4 vs http rendering.
+        # A gated instance MUST be edge-terminated (the edge has to see the request to forward-auth
+        # it), so `gated` overrides passthrough while on.
         http.append(
             {
                 "hostname": route.hostname,
                 "upstream": f"{instance.ip.address}:{route.target_port}",
-                "passthrough": bool(instance.tls_passthrough),
+                "passthrough": bool(instance.tls_passthrough) and not instance.gated,
+                "gated": bool(instance.gated),
                 "https_upstream": f"{instance.ip.address}:443",
             }
         )

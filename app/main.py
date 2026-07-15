@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings, session_secret
 from app.console import router as console_router
+from app.gate import router as gate_router
 from app.mcp_server import mcp, mcp_app
 from app.oauth import router as oauth_router
 from app.routes.api_v1 import router as api_v1_router
@@ -50,6 +51,7 @@ app.include_router(web_router)
 app.include_router(console_router)
 app.include_router(api_v1_router)
 app.include_router(oauth_router)
+app.include_router(gate_router)
 app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 

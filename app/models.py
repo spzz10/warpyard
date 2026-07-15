@@ -204,6 +204,11 @@ class Instance(Base):
     # True = the VM terminates its own HTTPS (Caddy via cloud-init) and the edge SNI-passes
     # :443 straight through, so the edge never sees plaintext. False (legacy) = edge terminates.
     tls_passthrough: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True = require a logged-in Warpyard member to reach this server's web ingress. The edge
+    # forward-auths every request to the control plane; unauthenticated visitors get bounced to
+    # the platform login. Forces edge-terminated TLS (the edge must see the request to gate it),
+    # so it overrides tls_passthrough while on. Off by default.
+    gated: Mapped[bool] = mapped_column(Boolean, default=False)
     # True = disk is on the ZFS-encrypted pool (aes-256-gcm). Full-clone only (slower create).
     encrypted: Mapped[bool] = mapped_column(Boolean, default=False)
     # Backups add-on: nightly vzdump to PBS + on-demand. Off by default.

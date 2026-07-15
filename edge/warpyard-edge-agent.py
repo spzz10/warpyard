@@ -25,7 +25,7 @@ L4_DIR = "/etc/caddy/layer4.d"  # passthrough hosts (SNI -> VM:443, edge never d
 CP_URL = os.environ.get("WARPYARD_CP_URL", "http://10.66.0.2:8000")
 TOKEN = os.environ.get("WARPYARD_EDGE_TOKEN", "")
 POLL = int(os.environ.get("WARPYARD_POLL", "15"))
-# where Caddy reaches the control plane for the default-favicon fallback (same upstream
+# where Caddy reaches the control plane for the favicon fallback + forward-auth (same upstream
 # the dashboard's Caddy block proxies to; defaults to the CP_URL host:port)
 CP_PROXY = os.environ.get("WARPYARD_CP_PROXY", CP_URL.split("://", 1)[-1].rstrip("/"))
 
@@ -57,6 +57,36 @@ def render_snippet(route: dict) -> str:
         f"\t}}\n"
         f"\thandle {{\n"
         f"\t\treverse_proxy {route['upstream']}\n"
+        f"\t}}\n"
+        f"}}\n"
+    )
+
+
+def render_gated_snippet(route: dict) -> str:
+    """An edge-terminated host behind platform auth. Every request is forward-auth'd to the
+    control plane's /edge/gate; an unauthenticated visitor is bounced to the Warpyard login.
+    The one /__wygate path (the login handoff that plants the gate cookie) skips forward_auth
+    so it can't loop. `route {}` preserves forward_auth-before-reverse_proxy ordering."""
+    host = route["hostname"]
+    safe = "".join(c if c.isalnum() else "_" for c in host)
+    # gating always edge-terminates and reverse-proxies to the VM's plain :80 — the same path
+    # every edge-terminated site uses (a passthrough server must serve :80 to be gated).
+    return (
+        f"@{safe} host {host}\n"
+        f"handle @{safe} {{\n"
+        f"\t@{safe}_wygate path /__wygate\n"
+        f"\thandle @{safe}_wygate {{\n"
+        f"\t\treverse_proxy {CP_PROXY}\n"
+        f"\t}}\n"
+        f"\thandle {{\n"
+        f"\t\troute {{\n"
+        f"\t\t\tforward_auth {CP_PROXY} {{\n"
+        f"\t\t\t\turi /edge/gate\n"
+        f"\t\t\t\theader_up X-Wy-Host {{host}}\n"
+        f"\t\t\t\theader_up X-Wy-Uri {{uri}}\n"
+        f"\t\t\t}}\n"
+        f"\t\t\treverse_proxy {route['upstream']}\n"
+        f"\t\t}}\n"
         f"\t}}\n"
         f"}}\n"
     )
@@ -95,7 +125,11 @@ def sync(state: dict) -> bool:
     exactly one dir: passthrough hosts -> layer4.d (SNI->VM:443), the rest -> routes.d (edge
     terminates, reverse_proxy VM:80)."""
     routes = state.get("http", [])
-    terminate = {f"{r['hostname']}.caddy": render_snippet(r) for r in routes if not r.get("passthrough")}
+    terminate = {
+        f"{r['hostname']}.caddy": (render_gated_snippet(r) if r.get("gated") else render_snippet(r))
+        for r in routes
+        if not r.get("passthrough")
+    }
     passthrough = {f"{r['hostname']}.l4": render_l4(r) for r in routes if r.get("passthrough")}
     changed_t = _sync_dir(ROUTES_DIR, ".caddy", terminate)
     changed_l4 = _sync_dir(L4_DIR, ".l4", passthrough)

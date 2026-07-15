@@ -38,6 +38,7 @@ def test_edge_routes_returns_live_routes(client, db, seeded):
             "hostname": "app.warpyard.test",
             "upstream": "10.66.0.150:8080",
             "passthrough": False,
+            "gated": False,
             "https_upstream": "10.66.0.150:443",
         }
     ]

@@ -193,6 +193,22 @@ git push warpyard main</code>
           <p class="note">Puts the name and address on the members-only <a href="/board">board</a> so everyone can see what you're working on. Listed only while the server is running.</p>
         </div>
       </div>
+      <div class="def">
+        <div class="dt">Require login</div>
+        <div class="dd">
+          <form method="post" action="/servers/{{ b.id }}/gate" style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap">
+            {% if b.gated %}
+            <span style="font-size:.9rem">On — visitors must sign in to Warpyard before this site loads.</span>
+            <input type="hidden" name="enabled" value="">
+            <button class="btn" type="submit">Turn off</button>
+            {% else %}
+            <input type="hidden" name="enabled" value="on">
+            <button class="btn" type="submit">Require Warpyard login</button>
+            {% endif %}
+          </form>
+          <p class="note">Puts your site behind the Warpyard login: the edge asks every visitor to sign in as a member before the site loads — good for private dashboards, admin panels, or a jumphost. Switches this server to edge-terminated TLS while on.</p>
+        </div>
+      </div>
     </div>
   </section>
 

@@ -542,6 +542,7 @@ def _server(instance: Instance) -> dict:
         "last_backup_at": instance.last_backup_at,
         "shared": instance.shared,
         "shared_note": instance.shared_note or "",
+        "gated": instance.gated,
         "restart_enabled": instance.restart_enabled,
         "restart_at": instance.restart_at or "",
         "monitor_id": instance.poppaping_monitor_id,
@@ -1057,6 +1058,21 @@ def share_toggle(
         return _login_redirect(request)
     with contextlib.suppress(service.ServiceError):
         service.set_share(db, user, instance_id, enabled == "on", note)
+    return RedirectResponse(f"/servers/{instance_id}#access", status_code=303)
+
+
+@router.post("/servers/{instance_id}/gate")
+def gate_toggle(
+    request: Request,
+    instance_id: int,
+    db: Session = Depends(get_db),
+    enabled: str = Form(""),
+):
+    user = _require(request, db)
+    if not user:
+        return _login_redirect(request)
+    with contextlib.suppress(service.ServiceError):
+        service.set_gate(db, user, instance_id, enabled == "on")
     return RedirectResponse(f"/servers/{instance_id}#access", status_code=303)
 
 

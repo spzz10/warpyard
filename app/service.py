@@ -608,6 +608,16 @@ def set_share(db: Session, user: User, server_id: int, enabled: bool, note: str 
     return {"server_id": i.id, "shared": {"enabled": i.shared, "note": i.shared_note}}
 
 
+def set_gate(db: Session, user: User, server_id: int, enabled: bool) -> dict:
+    """Require (or stop requiring) a logged-in Warpyard member to reach the server's web
+    ingress. Turning it on forces edge-terminated TLS (the edge must see the request to gate
+    it), so the change reaches the edge on the next route sync (~15s)."""
+    i = _owned_live(db, user, server_id)
+    i.gated = bool(enabled)
+    db.commit()
+    return {"server_id": i.id, "gated": i.gated}
+
+
 # ── monitoring (PoppaPing uptime checks + email alerts, on the user's own account) ──
 def _monitor_spec(i: Instance) -> dict:
     """What a PoppaPing monitor for this server should check: A2S games get a real 'game'
