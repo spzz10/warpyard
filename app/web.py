@@ -16,7 +16,7 @@ from itsdangerous import BadData, URLSafeTimedSerializer
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import favicon_gen, hoststats, mailer, poppaping, security, service, states
+from app import favicon_gen, hoststats, mailer, poppaping, ratelimit, security, service, states
 from app.config import get_settings, session_secret
 from app.database import get_db
 from app.jobs import queue
@@ -85,6 +85,13 @@ def login(
     password: str = Form(...),
     next: str = Form(""),
 ):
+    if not ratelimit.allow("login", ratelimit.client_key(request)):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Too many attempts — wait a few minutes and try again.", "next": _safe_next(next)},
+            status_code=429,
+        )
     user = db.scalar(select(User).where(User.email == email.strip().lower()))
     ok, upgraded = security.verify_password(password, user.password_hash if user else None)
     if not ok or user.status != "active":
@@ -283,6 +290,10 @@ def reset_request(request: Request, sent: str = ""):
 
 @router.post("/reset")
 def reset_send(request: Request, db: Session = Depends(get_db), email: str = Form(...)):
+    # throttled (it triggers real emails); the redirect stays identical so a throttled
+    # caller still learns nothing about which accounts exist
+    if not ratelimit.allow("reset", ratelimit.client_key(request)):
+        return RedirectResponse("/reset?sent=1", status_code=303)
     user = db.scalar(select(User).where(User.email == email.strip().lower()))
     if user and user.status == "active":
         url = f"{get_settings().PUBLIC_URL.rstrip('/')}/reset/{_reset_token(user)}"

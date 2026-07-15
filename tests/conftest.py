@@ -59,3 +59,12 @@ def client(db):
     # https base: the session cookie is Secure-only now, so an http test origin would drop it
     yield TestClient(fastapi_app, base_url="https://testserver")
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_ratelimit():
+    # rate-limit state is process-global; never let one test's logins throttle the next
+    from app import ratelimit
+
+    ratelimit.reset()
+    yield
