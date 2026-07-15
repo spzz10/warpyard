@@ -33,6 +33,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url=None,  # the auto Swagger UI exposes internal routes; we ship a curated /docs page instead
     redoc_url=None,
+    openapi_url=None,  # and the raw schema itself — it maps the internal /instances, /edge routes
 )
 # Session cookie for the dashboard. SESSION_SECRET should be set in prod; a random
 # per-process secret is fine for dev (just logs everyone out on restart).
@@ -115,6 +116,40 @@ class MCPBrowserLanding:
 
 
 app.add_middleware(MCPBrowserLanding)
+
+
+class SecurityHeaders:
+    """Defense-in-depth response headers. Pure-ASGI (not BaseHTTPMiddleware, which
+    buffers and would break the MCP SSE stream) — only rewrites the response-start
+    headers, never the body. CSP is intentionally just frame-ancestors: a script/style
+    policy would break the inline styles + HTMX attributes the templates rely on."""
+
+    _ADD = [
+        (b"x-frame-options", b"DENY"),
+        (b"x-content-type-options", b"nosniff"),
+        (b"referrer-policy", b"same-origin"),
+        (b"content-security-policy", b"frame-ancestors 'none'"),
+    ]
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = message.setdefault("headers", [])
+                present = {k.lower() for k, _ in headers}
+                headers.extend((k, v) for k, v in self._ADD if k not in present)
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+app.add_middleware(SecurityHeaders)
 
 
 _NOTFOUND_HTML = """<!doctype html><meta charset="utf-8"><title>Not found — Warpyard</title>

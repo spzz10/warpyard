@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import ratelimit
 from app.config import get_settings
 from app.database import get_db
 from app.models import OAuthClient, OAuthCode, OAuthToken, User
@@ -77,6 +78,10 @@ def rs_metadata_mcp(request: Request):
 # ── dynamic client registration (RFC 7591) ─────────────────────────────
 @router.post("/oauth/register")
 async def register(request: Request, db: Session = Depends(get_db)):
+    # dynamic registration is unauthenticated by design (RFC 7591); throttle it so an
+    # outsider can't spam OAuthClient rows into the DB
+    if not ratelimit.allow("oauth_reg", ratelimit.client_key(request)):
+        return JSONResponse({"error": "rate_limited"}, status_code=429)
     body = await request.json()
     redirect_uris = body.get("redirect_uris") or []
     if not isinstance(redirect_uris, list) or not redirect_uris:

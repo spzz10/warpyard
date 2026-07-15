@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from fastapi import Request
 
 WINDOW = 300.0  # seconds
-LIMITS = {"login": 15, "reset": 5}  # attempts per client per window
+LIMITS = {"login": 15, "reset": 5, "oauth_reg": 20}  # attempts per client per window
 _MAX_KEYS = 10_000  # memory backstop — prune expired entries past this
 
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
