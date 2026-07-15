@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% set nav = 'docs' %}
+{% block title %}Platform handbook — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Platform handbook</h1>
+    <div class="sub">How Warpyard actually works — the hardware, the network, the security model, and what to expect.</div>
+  </div>
+</div>
+
+<div style="max-width:820px">
+  <nav class="doctabs">
+    <a href="/docs">API reference</a>
+    <a href="/docs/platform" class="on">Platform handbook</a>
+  </nav>
+
+  <div class="section">
+    <h2 class="lbl">What Warpyard is</h2>
+    <p class="body">Warpyard is a small, invite-only VM hosting platform. Every server you create is a real
+      KVM virtual machine on dedicated hardware — not a container, not a shared runtime. You get root,
+      your SSH keys, a public hostname with automatic HTTPS, and a browser console. A control plane
+      handles provisioning and lifecycle; a public edge handles ingress. Everything the dashboard does is
+      also available over the <a href="/docs">REST API</a> and MCP.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Plans &amp; images</h2>
+    <table class="plans">
+      <tr><th>Plan</th><th>vCPU</th><th>Memory</th><th>Disk</th><th>Network</th></tr>
+      <tr><td class="mono">wy-1-1</td><td>2</td><td>4 GB</td><td>10 GB</td><td>100 Mbit/s</td></tr>
+      <tr><td class="mono">wy-2-2</td><td>4</td><td>8 GB</td><td>30 GB</td><td>200 Mbit/s</td></tr>
+      <tr><td class="mono">wy-2-4</td><td>6</td><td>16 GB</td><td>60 GB</td><td>300 Mbit/s</td></tr>
+      <tr><td class="mono">wy-4-8</td><td>8</td><td>32 GB</td><td>120 GB</td><td>500 Mbit/s</td></tr>
+    </table>
+    <p class="body">Images come in three kinds: plain <b>OS</b> (Ubuntu 24.04, Debian 12), <b>apps</b>
+      (WordPress, Nextcloud, Gitea, …) that come up configured and serving, and <b>game servers</b>
+      (Minecraft, Valheim, CS, …) with their ports pre-published. Any OS server can add
+      push&#8209;to&#8209;deploy or Docker with one command — see its <b>Add&#8209;ons</b> tab
+      (push&#8209;to&#8209;deploy = <span class="mono">git push</span> and the site redeploys).</p>
+    <p class="note">Lifecycle semantics worth knowing: <b>create</b> usually lands in well under a minute;
+      <b>resize</b> is grow-only and power-cycles the server; <b>rebuild</b> and <b>destroy</b> wipe the disk
+      and cannot be undone. Anything that changes a server is asynchronous — the API returns immediately
+      and the server settles through <span class="mono">provisioning → booting → running</span>.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Networking &amp; ingress</h2>
+    <p class="body">Your VM has <b>no public IP</b>. It lives on an isolated tenant network, and the public
+      edge publishes exactly what should be reachable:</p>
+    <div class="deflist">
+      <div class="def"><div class="dt">Web</div><div class="dd"><div class="val"><span class="mono">https://&lt;name&gt;.{{ settings.BASE_DOMAIN }}</span> →
+        your server's port 80. Custom domains can be added on top; HTTPS is automatic (Let's Encrypt) once DNS points at the edge.</div></div></div>
+      <div class="def"><div class="dt">SSH</div><div class="dd"><div class="val"><span class="mono">ssh -p &lt;port&gt; root@{{ settings.EDGE_HOST }}</span> —
+        each server gets a stable forwarded port (shown on its Access tab).</div></div></div>
+      <div class="def"><div class="dt">Game ports</div><div class="dd"><div class="val">Ports a game image declares (e.g. Minecraft 25565)
+        are published on the edge with stable public ports.</div></div></div>
+    </div>
+    <p class="note">Outbound internet from the VM is open. Certificates are real Let's Encrypt issuances —
+      the platform shares LE's rate limits, so churning many new hostnames in one week can briefly defer new certs.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Security model</h2>
+    <div class="deflist">
+      <div class="def"><div class="dt">Tenant isolation</div><div class="dd"><div class="val">Every VM carries a platform-managed firewall:
+        default-deny inbound, and its source IP + MAC are pinned (anti-spoofing). Servers cannot reach each other —
+        not yours, not anyone's — except through the public edge like any other internet client.</div></div></div>
+      <div class="def"><div class="dt">Private networking</div><div class="dd"><div class="val">Opt-in, per account: your own servers (and only
+        yours) may talk to each other directly. Cross-account traffic is never possible regardless of settings.</div></div></div>
+      <div class="def"><div class="dt">End-to-end TLS</div><div class="dd"><div class="val">On OS and app images (default), the VM holds its own
+        certificate and terminates its own HTTPS — the edge forwards ciphertext and never sees plaintext traffic.</div></div></div>
+      <div class="def"><div class="dt">Disk encryption</div><div class="dd"><div class="val">Optional at creation: the disk is stored encrypted
+        at rest (AES-256). Costs about a minute of extra build time.</div></div></div>
+      <div class="def"><div class="dt">Access</div><div class="dd"><div class="val">Only <em>your</em> SSH keys are installed on your servers — the
+        platform keeps no standing login to your VM. The browser console is gated to the server's owner.
+        API keys are stored hashed and shown once; passwords are bcrypt.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Your data: snapshots vs backups</h2>
+    <table class="plans">
+      <tr><th></th><th>Snapshots</th><th>Backups</th></tr>
+      <tr><td class="mono">what</td><td>instant on-host restore point</td><td>nightly copy stored off-host</td></tr>
+      <tr><td class="mono">when</td><td>on demand, before risky changes</td><td>automatic every night (opt-in)</td></tr>
+      <tr><td class="mono">kept</td><td>until you delete them</td><td>7 daily + 4 weekly</td></tr>
+      <tr><td class="mono">survives</td><td>mistakes on the VM</td><td>mistakes on the VM <em>and</em> loss of the host</td></tr>
+    </table>
+    <p class="note">Restoring either one <b>replaces the server's current disk</b> — that part is destructive by
+      nature. Backups run while the server stays up. For anything you'd miss: snapshots before risky work,
+      backups on always.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Performance expectations</h2>
+    <p class="body">VMs get <b>full host CPU passthrough</b> (Xeon E5-2690 v4 — AES-NI, AVX2, the works), so
+      software that expects a modern CPU behaves normally and TLS is hardware-accelerated. vCPUs are shared,
+      not dedicated: bursty and steady web/game workloads are the design target; sustained all-core batch
+      crunching will feel the neighbors (and they'll feel you). Storage is ZFS-backed, which is what makes
+      snapshots instant. Network is rate-limited per plan (table above).</p>
+    <p class="note">Optional per-server nightly restart is player-aware on game servers — an occupied server
+      waits until it's empty. Uptime monitoring with email alerts is one click on the server's Monitoring tab.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Limits &amp; housekeeping</h2>
+    <p class="body">Accounts start with a 15-server limit (ask if you genuinely need more). Members get a couple
+      of invite slots for friends. Sharing a server on the <a href="/board">Board</a> lists it for other members
+      while it's running — nothing on the board is visible outside the membership.</p>
+  </div>
+</div>
+
+<style>
+  /* the shared .val style break-alls for long tokens; these are prose */
+  .deflist .val{word-break:normal; overflow-wrap:break-word; color:var(--muted); line-height:1.6}
+  .deflist .val b, .deflist .val em{color:var(--text)}
+  .body{color:var(--muted); font-size:.92rem; line-height:1.65; margin:0 0 .6rem}
+  .body b{color:var(--text)}
+  .doctabs{display:flex; gap:.3rem; margin:0 0 .5rem}
+  .doctabs a{padding:.45rem .8rem; border-radius:8px; font-size:.85rem; color:var(--muted)}
+  .doctabs a:hover{background:var(--surface-2)}
+  .doctabs a.on{background:var(--surface-2); color:var(--text); font-weight:600}
+  table.plans{width:100%; border-collapse:collapse; font-size:.88rem; margin:0 0 .7rem}
+  table.plans th{font:600 .6rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--dim);
+    text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--line)}
+  table.plans td{padding:.55rem .6rem; border-bottom:1px solid var(--line); color:var(--muted)}
+  table.plans td.mono, .mono{font-family:var(--mono); font-size:.84em}
+  table.plans td:first-child{color:var(--text)}
+</style>
+{% endblock %}

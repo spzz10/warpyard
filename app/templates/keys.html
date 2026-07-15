@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set nav = 'keys' %}
+{% block title %}Keys — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>SSH keys</h1>
+    <div class="sub">These public keys are installed on every server you create.</div>
+  </div>
+</div>
+
+<div style="max-width:760px">
+  {% if keys %}
+  <table class="keys">
+    <tr><th>Name</th><th>Fingerprint</th><th></th></tr>
+    {% for k in keys %}
+    <tr>
+      <td>{{ k.name }}</td>
+      <td class="fp">{{ k.public_key.split()[1][:32] if k.public_key.split()|length > 1 else k.public_key[:32] }}…</td>
+      <td style="text-align:right">
+        <form method="post" action="/keys/{{ k.id }}/delete" style="display:inline">
+          <button class="btn danger ghost" type="submit">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No keys yet — add one so you can connect to your servers over SSH.</p>
+  {% endif %}
+
+  <div class="panel" style="margin:1.6rem 0 0; max-width:none">
+    <form method="post" action="/keys">
+      <label class="fld" for="name">Key name</label>
+      <input id="name" name="name" placeholder="laptop" required>
+      <label class="fld" for="public_key">Public key</label>
+      <textarea id="public_key" name="public_key" class="mono" rows="3" placeholder="ssh-ed25519 AAAA… you@host" required></textarea>
+      <div class="btn-row"><button class="btn primary" type="submit">Add key</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

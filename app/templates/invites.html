@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set nav = 'invites' %}
+{% block title %}Invites — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Invites</h1>
+    <div class="sub">Create an invite link and send it to whoever you want to give an account.{% if email_on %} Pin one to an email and we'll send it for you.{% endif %}</div>
+  </div>
+</div>
+
+<div style="max-width:820px">
+  {% if flash == 'sent' %}<div class="err" style="background:var(--green-soft); border-color:rgba(63,201,138,.4); color:#bff3da">Invite emailed.</div>{% endif %}
+  {% if flash == 'sendfail' %}<div class="err">Couldn't send the email — the link below still works, share it manually.</div>{% endif %}
+  {% if requests %}
+  <div class="panel" style="max-width:none; margin-bottom:1.6rem">
+    <h2 style="margin:0 0 .6rem; font-size:1.05rem; font-weight:640">Requests
+      <span class="ct" style="font:600 .68rem/1 var(--mono); background:var(--accent-soft); color:var(--accent-2); padding:.15rem .4rem; border-radius:6px">{{ requests|length }}</span></h2>
+    <table class="keys">
+      {% for r in requests %}
+      <tr>
+        <td>{{ r.email }}</td>
+        <td style="color:var(--muted)">{{ r.message or '—' }}</td>
+        <td style="color:var(--dim); white-space:nowrap">{{ r.created_at.strftime('%b %-d') }}</td>
+        <td style="text-align:right; white-space:nowrap">
+          <form method="post" action="/invites/requests/{{ r.id }}/approve" style="display:inline">
+            <button class="btn go" type="submit" style="padding:.4rem .7rem">Send invite</button>
+          </form>
+          <form method="post" action="/invites/requests/{{ r.id }}/dismiss" style="display:inline">
+            <button class="btn" type="submit" style="padding:.4rem .7rem">Dismiss</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  <div class="panel" style="max-width:none; margin-bottom:1.6rem">
+    <form method="post" action="/invites" style="display:grid; grid-template-columns:1fr 1fr auto; gap:.8rem; align-items:end">
+      <div>
+        <label class="fld" for="note">Note</label>
+        <input id="note" name="note" placeholder="for Sam">
+      </div>
+      <div>
+        <label class="fld" for="email">Pin to email (optional)</label>
+        <input id="email" name="email" type="email" placeholder="anyone">
+      </div>
+      <button class="btn primary" type="submit">Create invite</button>
+    </form>
+  </div>
+
+  {% if invites %}
+  <table class="keys">
+    <tr><th>Note</th><th>For</th><th>Link</th><th>Status</th><th></th></tr>
+    {% for inv in invites %}
+    <tr>
+      <td>{{ inv.note }}</td>
+      <td>{{ inv.email }}</td>
+      <td class="fp"><a href="{{ inv.url }}">{{ inv.url }}</a></td>
+      <td>
+        {% if inv.redeemed %}<span class="light idle"><span class="dot idle"></span>Claimed</span>
+        {% else %}<span class="light go"><span class="dot go"></span>Open</span>{% endif %}
+      </td>
+      <td style="text-align:right; white-space:nowrap">
+        {% if inv.has_email and not inv.redeemed and email_on %}
+        <form method="post" action="/invites/{{ inv.id }}/send" style="display:inline">
+          <button class="btn" type="submit" style="padding:.4rem .7rem">Email invite</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No invites yet. Mint one above.</p>
+  {% endif %}
+</div>
+{% endblock %}

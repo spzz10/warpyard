@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% set nav = 'board' %}
+{% block title %}Board — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Board</h1>
+    <div class="sub">What everyone's running right now. Share a server from its Access tab — it's listed while it's up.</div>
+  </div>
+</div>
+
+{% if host %}
+<a class="health" href="/host" title="Open the platform host page">
+  <span class="chip go"><span class="dot"></span>Platform host</span>
+  <span class="hv"><b>{{ host.cpu_pct }}%</b> CPU</span>
+  <span class="hv"><b>{{ host.mem_pct }}%</b> memory</span>
+  <span class="hv"><b>{{ host.vms_running }}/{{ host.vms_total }}</b> servers up</span>
+  <span class="hv"><b>{{ host.uptime }}</b> uptime</span>
+  <span class="hgo">Host metrics →</span>
+</a>
+<style>
+  .health{display:flex; align-items:center; gap:1.1rem; flex-wrap:wrap; margin:0 0 1.1rem;
+    padding:.6rem .95rem; border:1px solid var(--line); border-radius:var(--r); background:var(--surface);
+    color:var(--muted); font-size:.85rem; transition:border-color .14s}
+  .health:hover{border-color:var(--line-2); color:var(--muted)}
+  .health .hv b{color:var(--text); font-weight:600; font-variant-numeric:tabular-nums}
+  .health .hgo{margin-left:auto; color:var(--accent-2); font-weight:500}
+</style>
+{% endif %}
+
+{% if entries %}
+<div class="list">
+  {% for e in entries %}
+  <div class="brditem">
+  <div class="srv">
+    <div class="srv-idy">
+      {% if e.mine %}<a class="srv-name" href="/servers/{{ e.id }}">{{ e.label }}</a>
+      {% else %}<span class="srv-name">{{ e.label }}</span>{% endif %}
+      {% if e.connect %}
+      {% for ep in e.connect.endpoints %}
+      <code class="copy srv-host" data-copy="{{ ep.endpoint }}" title="Click to copy">{{ ep.endpoint }}{% if e.connect.endpoints|length > 1 %} ({{ ep.proto|upper }}){% endif %}</code>
+      {% endfor %}
+      {% elif e.url %}
+      <a class="srv-host" href="{{ e.url }}" target="_blank" rel="noopener">{{ e.hostname }} ↗</a>
+      {% endif %}
+      {% if e.note %}<span style="font-size:.85rem; color:var(--muted)">{{ e.note }}</span>{% endif %}
+    </div>
+    <div class="srv-specs">{{ e.image }}</div>
+    {% if e.connect and e.connect.players %}
+    <span class="chip {{ 'go' if e.connect.players.online else 'idle' }}" title="Players online right now">
+      <span class="dot"></span>{{ e.connect.players.online }} / {{ e.connect.players.max }} playing</span>
+    {% endif %}
+    <span class="chip idle">{{ e.owner }}</span>
+  </div>
+  {% with c = e.comments %}{% include "_board_comments.html" %}{% endwith %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="big">Nothing on the board yet.</div>
+  <div>Open one of your servers and hit <b>Share</b> on the Access tab to show everyone what you're working on.</div>
+</div>
+{% endif %}
+
+<style>
+  .brditem{border-top:1px solid var(--line)}
+  .brditem:first-child{border-top:none}
+  .brditem .srv{border-top:none}
+  .bc{padding:0 1.1rem .65rem}
+  .bc summary{cursor:pointer; font-size:.78rem; color:var(--dim); user-select:none; width:max-content}
+  .bc summary:hover{color:var(--text)}
+  .bc-body{margin:.55rem 0 0; display:flex; flex-direction:column; gap:.45rem; max-width:620px}
+  .bc-row{display:flex; gap:.55rem; align-items:baseline}
+  .bc-author{font-weight:600; font-size:.83rem; color:var(--text); flex:none}
+  .bc-text{color:var(--muted); font-size:.85rem; min-width:0; overflow-wrap:anywhere; flex:1 1 auto}
+  .bc-when{color:var(--dim); font-size:.7rem; flex:none}
+  .bc-del{background:none; border:none; color:var(--dim); cursor:pointer; font-size:.95rem; padding:0 .2rem; flex:none}
+  .bc-del:hover{color:var(--red)}
+  .bc-form{display:flex; gap:.5rem; margin-top:.25rem}
+  .bc-form input{flex:1; background:var(--bg); border:1px solid var(--line-2); border-radius:8px;
+    padding:.45rem .7rem; color:var(--text); font-size:.85rem; font-family:inherit}
+  .bc-form input:focus{outline:none; border-color:var(--accent-2)}
+</style>
+{% endblock %}

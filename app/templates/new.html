@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% set nav = 'servers' %}
+{% block title %}Create server — Warpyard{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:640px">
+  <h1 style="margin:0 0 .3rem; font-size:1.5rem; font-weight:600; letter-spacing:-.02em">Create a server</h1>
+  <p style="color:var(--muted); margin:0 0 .4rem">Pick a size and an image — it'll be running in about a minute.</p>
+  {% if error %}<div class="err" style="margin-top:.8rem">{{ error }}</div>{% endif %}
+  <form method="post" action="/new">
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">1</span><span class="step-t">Name</span></div>
+      <input id="label" name="label" class="mono" placeholder="my-app" pattern="[a-z0-9-]+" required autofocus
+             title="Lowercase letters, numbers and hyphens only" autocapitalize="none" spellcheck="false">
+      <p class="step-note">Gets a public address at <span class="mono">&lt;name&gt;.{{ settings.BASE_DOMAIN }}</span>. Lowercase letters, numbers and hyphens.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">2</span><span class="step-t">Size</span><span class="step-hint" id="size-hint">CPU &amp; RAM are generous — disk is what scales</span></div>
+      <div class="opts">
+        {% for p in plans %}
+        <label class="opt">
+          <input type="radio" name="plan" value="{{ p.slug }}" {{ 'checked' if loop.first }}>
+          <div class="nm">{{ p.name }}</div>
+          <div class="meta">{{ p.vcpus }} vCPU · {{ p.memory_mb // 1024 }}GB RAM · {{ p.disk_gb }}GB disk</div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">3</span><span class="step-t">Image</span></div>
+      {% for key, heading in [('os','Operating systems'), ('app','Apps'), ('game','Game servers')] %}
+      {% set group = images|selectattr('category','equalto',key)|list %}
+      {% if group %}
+      <div class="grouplabel">{{ heading }}</div>
+      <div class="opts">
+        {% for im in group %}
+        <label class="opt">
+          <input type="radio" name="image" value="{{ im.slug }}" data-plan="{{ im.default_plan }}" {{ 'checked' if key=='os' and loop.first }}>
+          <div class="nm">{{ im.name }}</div>
+          <div class="meta">{% if im.blurb %}{{ im.blurb }}{% elif key=='game' and im.ports %}{{ im.ports.split(',')|length }} port{{ 's' if ',' in im.ports }} · you get a connect address{% elif im.slug == 'web-2404' %}git push → your site builds &amp; goes live{% elif im.slug == 'docker' %}Docker + Compose — run any container{% else %}{{ im.slug }}{% endif %}</div>
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endfor %}
+      <p class="step-note">Looking for Docker or git push-to-deploy? They're one-line add-ons you can enable on any
+        server after it's created — you'll find them on the server's page.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">4</span><span class="step-t">Privacy &amp; security</span><span class="step-hint">optional</span></div>
+      <label class="opt-check">
+        <input type="checkbox" name="tls_e2e" id="tls_e2e" checked>
+        <span class="box" aria-hidden="true"></span>
+        <span class="txt">
+          <span class="nm">End-to-end TLS <span class="rec">recommended for websites</span></span>
+          <span class="meta">Your server terminates HTTPS itself with its own Let's Encrypt certificate, so Warpyard's edge only forwards <b>encrypted</b> traffic — we never see your visitors' requests in the clear. Each server uses one unique certificate; Let's Encrypt allows <b>50 new certificates per week</b> across {{ settings.BASE_DOMAIN }} (~{{ certs_week }} issued in the last 7 days). Leave off for game servers or if you don't serve a website.</span>
+        </span>
+      </label>
+      <label class="opt-check">
+        <input type="checkbox" name="encrypt" id="encrypt">
+        <span class="box" aria-hidden="true"></span>
+        <span class="txt">
+          <span class="nm">Encrypt disk at rest</span>
+          <span class="meta">The disk is stored encrypted (AES-256), so a stolen or discarded drive can't be read. <b>Adds ~1 minute to creation</b> (the disk is fully copied, not cloned instantly). Worth it for sensitive data; most servers don't need it.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">5</span><span class="step-t">SSH access</span><span class="step-hint">optional</span></div>
+      {% if user.ssh_keys %}
+      <p class="step-note" style="margin-top:0">Your {{ 'key' if user.ssh_keys|length == 1 else 'keys' }} will be installed: <b style="color:var(--muted)">{{ user.ssh_keys|map(attribute='name')|join(', ') }}</b>. Add another below if you want.</p>
+      {% else %}
+      <p class="step-note" style="margin-top:0">No SSH keys on your account yet. Paste one to connect over SSH — or skip it and use the browser console.</p>
+      {% endif %}
+      <label class="fld" for="public_key" style="margin-top:.4rem">Public key</label>
+      <textarea id="public_key" name="public_key" class="mono" rows="2" placeholder="ssh-ed25519 AAAA… you@host   (optional)"></textarea>
+      <label class="fld" for="key_name">Key name</label>
+      <input id="key_name" name="key_name" placeholder="e.g. laptop">
+    </div>
+
+    <div class="btn-row" style="margin-top:1.6rem">
+      <button class="btn primary" type="submit">Create server</button>
+      <a class="btn ghost" href="/">Cancel</a>
+    </div>
+  </form>
+</div>
+<style>
+  .step{padding-top:1.5rem; margin-top:1.5rem; border-top:1px solid var(--line)}
+  .step:first-of-type{border-top:none; margin-top:.6rem; padding-top:0}
+  .step-h{display:flex; align-items:center; gap:.6rem; margin-bottom:.9rem}
+  .step-n{display:grid; place-items:center; width:22px; height:22px; border-radius:50%; flex:none;
+    background:var(--accent-soft); color:var(--accent-2); font:700 .72rem/1 var(--mono)}
+  .step-t{font-size:1.02rem; font-weight:600; letter-spacing:-.01em}
+  .step-hint{margin-left:auto; color:var(--dim); font-size:.76rem}
+  .step-note{color:var(--dim); font-size:.78rem; margin:.4rem 0 0; line-height:1.5}
+  .grouplabel{margin:1.1rem 0 .5rem; color:var(--dim); font:600 .58rem/1 var(--mono); letter-spacing:.14em; text-transform:uppercase}
+  .grouplabel:first-child{margin-top:0}
+  .opt-check{display:flex; gap:.7rem; align-items:flex-start; padding:.85rem .9rem; border:1px solid var(--line);
+    border-radius:12px; cursor:pointer; margin-bottom:.7rem}
+  .opt-check:has(input:checked){border-color:var(--accent-2); background:var(--accent-soft)}
+  .opt-check input{position:absolute; opacity:0; width:0; height:0}
+  .opt-check .box{flex:none; width:18px; height:18px; margin-top:.15rem; border:1.5px solid var(--line);
+    border-radius:5px; display:grid; place-items:center; transition:.12s}
+  .opt-check input:checked ~ .box{background:var(--accent-2); border-color:var(--accent-2)}
+  .opt-check input:checked ~ .box::after{content:"✓"; color:#fff; font-size:.72rem; font-weight:700}
+  .opt-check input:focus-visible ~ .box{outline:2px solid var(--accent-2); outline-offset:2px}
+  .opt-check .nm{display:block; font-weight:600; font-size:.95rem}
+  .opt-check .meta{display:block; color:var(--dim); font-size:.78rem; line-height:1.5; margin-top:.25rem}
+  .opt-check .rec{font:600 .62rem/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--accent-2);
+    margin-left:.4rem; vertical-align:middle}
+</style>
+<script>
+  // names are lowercase — fix typing rather than rejecting it
+  var labelEl = document.getElementById('label');
+  if(labelEl) labelEl.addEventListener('input', function(){
+    var lower = labelEl.value.toLowerCase();
+    if(labelEl.value !== lower) labelEl.value = lower;
+  });
+
+  // pick the right-sized plan for the chosen image (e.g. CS2 needs a big-disk plan),
+  // and SAY so — silently switching the user's selection is confusing
+  var sizeHint = document.getElementById('size-hint');
+  var defaultHint = sizeHint ? sizeHint.textContent : '';
+  function sizeFor(img, announce){
+    var plan = img && img.dataset.plan;
+    if(!plan) return;
+    var el = document.querySelector('input[name=plan][value="'+plan+'"]');
+    if(el && !el.checked){
+      el.checked = true;
+      if(announce && sizeHint){
+        var name = img.closest('.opt').querySelector('.nm').textContent;
+        sizeHint.textContent = 'Sized for ' + name + ' — change it if you like';
+        sizeHint.style.color = 'var(--accent-2)';
+      }
+    }
+  }
+  document.querySelectorAll('input[name=image]').forEach(function(r){
+    r.addEventListener('change', function(){ sizeFor(r, true); });
+  });
+  document.querySelectorAll('input[name=plan]').forEach(function(r){
+    r.addEventListener('change', function(){
+      if(sizeHint){ sizeHint.textContent = defaultHint; sizeHint.style.color = ''; }
+    });
+  });
+  sizeFor(document.querySelector('input[name=image]:checked'), false);  // apply on load, quietly
+
+  // end-to-end TLS is for web servers — auto-uncheck it when a game image is picked (its web
+  // address just 502s), but leave the user free to turn it back on.
+  var tlsBox = document.getElementById('tls_e2e');
+  document.querySelectorAll('input[name=image]').forEach(function(r){
+    r.addEventListener('change', function(){
+      if(!tlsBox) return;
+      var group = r.closest('.opts').previousElementSibling;  // the .grouplabel heading
+      tlsBox.checked = !(group && /game/i.test(group.textContent));
+    });
+  });
+</script>
+{% endblock %}

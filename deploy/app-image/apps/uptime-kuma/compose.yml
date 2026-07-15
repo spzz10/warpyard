@@ -1,0 +1,12 @@
+# Uptime Kuma — status/uptime monitoring. First visit creates the admin account.
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    ports:
+      - "80:3001"
+    volumes:
+      - kuma:/app/data
+
+volumes:
+  kuma:

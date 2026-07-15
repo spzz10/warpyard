@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% set nav = 'host' %}
+{% block title %}Host — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Platform host</h1>
+    <div class="sub">Live metrics for <span class="mono">{{ ov.node if ov else settings.PROXMOX_NODE }}</span> — the hypervisor
+      running every Warpyard server.{% if ov %} {{ ov.model }} · {{ ov.cores }} cores · {{ ov.mem_total }} RAM.{% endif %}</div>
+  </div>
+</div>
+
+<div id="ht-top" hx-get="/host/overview" hx-trigger="every 15s [document.visibilityState=='visible']" hx-swap="innerHTML">
+  {% include "_host_tiles.html" %}
+</div>
+
+<h2 class="lbl">History</h2>
+<div id="hostmx" data-url="/host/metrics.json">
+  <div class="tfrow" role="group" aria-label="Time range">
+    <button type="button" class="btn tf" data-tf="hour" aria-pressed="true">Hour</button>
+    <button type="button" class="btn tf" data-tf="day" aria-pressed="false">Day</button>
+    <button type="button" class="btn tf" data-tf="week" aria-pressed="false">Week</button>
+  </div>
+  <div class="mx-grid">
+    <div data-chart="cpu"></div>
+    <div data-chart="load"></div>
+    <div data-chart="mem"></div>
+    <div data-chart="pressure"></div>
+    <div data-chart="net" class="mx-wide"></div>
+  </div>
+  <p class="note" style="margin:.8rem 0 1.8rem">Measured on the hypervisor itself, averaged per point. Updates every 30 seconds.</p>
+</div>
+
+<div id="ht-lower">
+  {% include "_host_lower.html" %}
+</div>
+
+<style>
+  /* stat tiles */
+  .ht-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:.9rem; margin:0 0 1.8rem}
+  .tile{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:.8rem .95rem}
+  .tile .tl{font-size:.75rem; color:var(--muted); font-weight:500}
+  .tile .tv{font-size:1.5rem; font-weight:650; letter-spacing:-.02em; margin:.12rem 0 .05rem; white-space:nowrap}
+  .tile .tv small{font-size:.95rem; font-weight:550; color:var(--muted)}
+  .tile .ts{font-size:.74rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .tile .spark{display:block; width:100%; height:26px; margin-top:.5rem}
+
+  /* memory composition: stacked bar, 2px surface gaps between segments */
+  .ht-comp{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:.85rem .95rem; margin:0 0 1.8rem}
+  .comp-bar{display:flex; height:14px; border-radius:7px; overflow:hidden; gap:2px; background:var(--bg)}
+  .comp-bar i{display:block; height:100%; min-width:3px}
+  .seg-a{background:var(--accent)} .seg-b{background:#1d9a8e} .seg-c{background:var(--surface-2)}
+  .comp-legend{display:flex; gap:1.2rem; flex-wrap:wrap; margin-top:.6rem}
+  .comp-legend .mx-key i{width:10px; height:10px; border-radius:3px}
+  .comp-legend b{color:var(--text); font-weight:600; margin-left:.2rem}
+
+  /* top consumers */
+  .ht-cons{display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin:0 0 1.8rem}
+  @media(max-width:640px){ .ht-cons{grid-template-columns:1fr} }
+  .cons-card{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:.85rem .95rem}
+  .cons-row{display:grid; grid-template-columns:minmax(90px,150px) 1fr minmax(70px,auto); gap:.7rem; align-items:center; padding:.28rem 0}
+  .cons-name{font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cons-track{display:block; height:8px; border-radius:4px; background:var(--accent-soft); overflow:hidden}
+  .cons-track i{display:block; height:100%; border-radius:4px; background:var(--accent)}
+  .cons-val{font-size:.78rem; color:var(--muted); font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap}
+
+  /* usage meters: track = soft step of the same hue so state reads across the whole bar */
+  .meter{height:6px; border-radius:3px; background:var(--accent-soft); overflow:hidden; min-width:80px}
+  .meter i{display:block; height:100%; border-radius:3px; background:var(--accent); min-width:2px}
+  .meter.warn{background:var(--amber-soft)} .meter.warn i{background:var(--amber)}
+  .meter.bad{background:var(--red-soft)} .meter.bad i{background:var(--red)}
+
+  /* storage rows */
+  .ht-store{border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); overflow:hidden; margin:0 0 1.8rem}
+  .st-row{display:grid; grid-template-columns:minmax(150px,240px) 1fr minmax(150px,220px) 3.4rem;
+    gap:1rem; align-items:center; padding:.7rem 1rem; border-bottom:1px solid var(--line)}
+  .st-row:last-child{border-bottom:0}
+  .st-row .nm{font-weight:600; font-size:.9rem}
+  .st-row .nt{font-size:.78rem; color:var(--dim)}
+  .st-row .use{font-size:.82rem; color:var(--muted); font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right}
+  .st-row .pc{font-size:.82rem; font-weight:600; font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right}
+  @media(max-width:640px){ .st-row{grid-template-columns:1fr 3.4rem} .st-row .meter,.st-row .use{display:none} }
+
+  /* tenant VM table */
+  .ht-vms{border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); overflow:auto; margin:0 0 1.5rem}
+  table.htvm{width:100%; border-collapse:collapse; font-size:.875rem; min-width:640px}
+  table.htvm th{text-align:left; color:var(--dim); font-weight:500; font-size:.72rem; letter-spacing:.04em;
+    text-transform:uppercase; padding:.6rem .9rem; border-bottom:1px solid var(--line); white-space:nowrap}
+  table.htvm th[data-sort]{cursor:pointer; user-select:none; transition:color .12s}
+  table.htvm th[data-sort]:hover, table.htvm th[data-sort]:focus-visible{color:var(--muted)}
+  table.htvm th[aria-sort="ascending"]::after{content:" ↑"; color:var(--accent-2)}
+  table.htvm th[aria-sort="descending"]::after{content:" ↓"; color:var(--accent-2)}
+  table.htvm td{padding:.55rem .9rem; border-bottom:1px solid var(--line); vertical-align:middle}
+  table.htvm tr:last-child td{border-bottom:0}
+  table.htvm .num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+  table.htvm td.dimc{color:var(--dim)}
+  .vm-mem{display:flex; align-items:center; gap:.6rem}
+  .vm-mem .meter{width:64px; flex:none}
+</style>
+<script src="/static/wycharts.js"></script>
+<script>
+  wyHost(document.getElementById("hostmx"));
+
+  // sortable VM table: click (or Enter/Space on) a column header; the choice is
+  // page-local state so it survives the 15s HTMX re-render of #ht-lower
+  (function () {
+    var sort = { key: null, dir: 1 };
+
+    function apply() {
+      if (!sort.key) return;
+      var table = document.querySelector("#ht-lower table.htvm");
+      if (!table) return;
+      var th = table.querySelector('th[data-sort="' + sort.key + '"]');
+      var numeric = th && th.dataset.type === "num";
+      var tbody = table.querySelector("tbody");
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr[data-vmid]"));
+      rows.sort(function (a, b) {
+        var x = a.dataset[sort.key], y = b.dataset[sort.key];
+        var c = numeric ? parseFloat(x) - parseFloat(y) : x.localeCompare(y);
+        return sort.dir * c || a.dataset.name.localeCompare(b.dataset.name); // stable-ish tiebreak
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+      table.querySelectorAll("th[data-sort]").forEach(function (h) {
+        h.setAttribute("aria-sort", h.dataset.sort === sort.key
+          ? (sort.dir === 1 ? "ascending" : "descending") : "none");
+      });
+    }
+
+    function pick(th) {
+      if (sort.key === th.dataset.sort) sort.dir = -sort.dir;
+      else { sort.key = th.dataset.sort; sort.dir = th.dataset.type === "num" ? -1 : 1; } // numbers: biggest first
+      apply();
+    }
+
+    document.addEventListener("click", function (e) {
+      var th = e.target.closest && e.target.closest("#ht-lower th[data-sort]");
+      if (th) pick(th);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var th = e.target.closest && e.target.closest("#ht-lower th[data-sort]");
+      if (th) { e.preventDefault(); pick(th); }
+    });
+    // fresh rows arrive in server order — re-apply the user's sort after each poll
+    document.body.addEventListener("htmx:afterSwap", apply);
+    document.body.addEventListener("htmx:oobAfterSwap", apply);
+  })();
+</script>
+{% endblock %}

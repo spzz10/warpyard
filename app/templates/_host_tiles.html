@@ -1,0 +1,48 @@
+{% macro spark(s) %}
+{% if s %}
+<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+  <polygon points="{{ s.area }}" fill="var(--accent-soft)"/>
+  <polyline points="{{ s.line }}" fill="none" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+</svg>
+{% endif %}
+{% endmacro %}
+{% if not ov %}
+<div class="err" style="margin-bottom:1.4rem">Can't reach the hypervisor right now — metrics unavailable. Retrying automatically.</div>
+{% else %}
+<div class="ht-tiles">
+  <div class="tile">
+    <div class="tl">CPU</div>
+    <div class="tv">{{ ov.cpu_pct }}<small>%</small></div>
+    <div class="ts">of {{ ov.cores }} cores</div>
+    {{ spark(ov.sparks.cpu) }}
+  </div>
+  <div class="tile">
+    <div class="tl">Load</div>
+    <div class="tv">{{ ov.load1 }}</div>
+    <div class="ts">5m {{ ov.load5 }} · 15m {{ ov.load15 }}</div>
+    {{ spark(ov.sparks.load) }}
+  </div>
+  <div class="tile">
+    <div class="tl">Memory</div>
+    <div class="tv">{{ ov.mem_pct }}<small>%</small></div>
+    <div class="ts">{{ ov.mem_used }} of {{ ov.mem_total }}</div>
+    {{ spark(ov.sparks.mem) }}
+  </div>
+  <div class="tile">
+    <div class="tl">Network</div>
+    <div class="tv" style="font-size:.85rem; padding-top:.5rem; letter-spacing:0" title="{{ ov.net_now }}">{{ ov.net_now }}</div>
+    <div class="ts">in + out, last hour</div>
+    {{ spark(ov.sparks.net) }}
+  </div>
+  <div class="tile">
+    <div class="tl">Tenant VMs</div>
+    <div class="tv">{{ ov.vms_running }}<small> / {{ ov.vms_total }} running</small></div>
+    <div class="ts" title="Allocated to tenants: {{ ov.alloc_vcpus }} vCPU, {{ ov.alloc_mem }} RAM">{{ ov.alloc_vcpus }} vCPU · {{ ov.alloc_mem }}</div>
+  </div>
+  <div class="tile">
+    <div class="tl">Uptime</div>
+    <div class="tv">{{ ov.uptime }}</div>
+    <div class="ts" title="Proxmox VE {{ ov.pve }}{% if ov.kernel %} · kernel {{ ov.kernel }}{% endif %}">PVE {{ ov.pve }}{% if ov.kernel %} · {{ ov.kernel }}{% endif %}</div>
+  </div>
+</div>
+{% endif %}

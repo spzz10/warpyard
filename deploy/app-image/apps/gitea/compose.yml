@@ -1,0 +1,22 @@
+# Gitea on SQLite — light and self-contained. First visit confirms the install
+# settings and creates your admin account. Container SSH is not published (the VM's
+# own sshd owns port 22); use HTTPS remotes.
+services:
+  gitea:
+    image: gitea/gitea:1
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__server__DOMAIN: ${WY_HOST}
+      GITEA__server__ROOT_URL: https://${WY_HOST}/
+      GITEA__server__SSH_DOMAIN: ${WY_HOST}
+      GITEA__server__DISABLE_SSH: "true"
+    volumes:
+      - gitea:/data
+
+volumes:
+  gitea:

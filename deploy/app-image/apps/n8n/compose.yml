@@ -1,0 +1,19 @@
+# n8n workflow automation. Told its public https URL so OAuth callbacks and webhook
+# URLs are generated correctly behind the edge.
+services:
+  n8n:
+    image: n8nio/n8n:stable
+    restart: unless-stopped
+    ports:
+      - "80:5678"
+    environment:
+      N8N_HOST: ${WY_HOST}
+      N8N_PROTOCOL: https
+      N8N_PROXY_HOPS: "1"
+      WEBHOOK_URL: https://${WY_HOST}/
+      GENERIC_TIMEZONE: UTC
+    volumes:
+      - n8n:/home/node/.n8n
+
+volumes:
+  n8n:

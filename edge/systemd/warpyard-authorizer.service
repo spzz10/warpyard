@@ -1,0 +1,15 @@
+[Unit]
+Description=Warpyard edge on-demand-TLS authorizer
+After=network.target
+Before=caddy.service
+
+[Service]
+Environment=WARPYARD_BASE_DOMAIN=example.com
+ExecStart=/usr/local/bin/warpyard-authorizer
+User=caddy
+Group=caddy
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

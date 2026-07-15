@@ -1,0 +1,100 @@
+{% if ov %}
+{% if ov.composition %}
+<h2 class="lbl">Memory composition</h2>
+<div class="ht-comp">
+  <div class="comp-bar" role="img" aria-label="{% for c in ov.composition %}{{ c.label }} {{ c.bytes }}{{ '' if loop.last else ', ' }}{% endfor %}">
+    {% for c in ov.composition %}<i class="{{ c.cls }}" style="width:{{ '%.2f'|format(c.pct) }}%"></i>{% endfor %}
+  </div>
+  <div class="comp-legend">
+    {% for c in ov.composition %}
+    <span class="mx-key"><i class="{{ c.cls }}"></i>{{ c.label }} <b>{{ c.bytes }}</b></span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if ov.top_cpu or ov.top_mem %}
+<h2 class="lbl">Top consumers</h2>
+<div class="ht-cons">
+  <div class="cons-card">
+    <div class="mx-title" style="margin-bottom:.6rem">Busiest by CPU (host cores in use)</div>
+    {% for b in ov.top_cpu %}
+    <div class="cons-row">
+      <span class="cons-name">{% if b.instance_id %}<a href="/servers/{{ b.instance_id }}">{{ b.name }}</a>{% else %}{{ b.name }}{% endif %}</span>
+      <span class="cons-track"><i style="width:{{ b.width }}%"></i></span>
+      <span class="cons-val">{{ b.value }}</span>
+    </div>
+    {% else %}<div class="mx-empty" style="padding:1.2rem 0">nothing measurable right now</div>{% endfor %}
+  </div>
+  <div class="cons-card">
+    <div class="mx-title" style="margin-bottom:.6rem">Busiest by memory (RAM in use)</div>
+    {% for b in ov.top_mem %}
+    <div class="cons-row">
+      <span class="cons-name">{% if b.instance_id %}<a href="/servers/{{ b.instance_id }}">{{ b.name }}</a>{% else %}{{ b.name }}{% endif %}</span>
+      <span class="cons-track"><i style="width:{{ b.width }}%"></i></span>
+      <span class="cons-val">{{ b.value }}</span>
+    </div>
+    {% else %}<div class="mx-empty" style="padding:1.2rem 0">nothing measurable right now</div>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<h2 class="lbl">Storage</h2>
+<div class="ht-store">
+  {% for s in ov.storage %}
+  <div class="st-row">
+    <div>
+      <div class="nm mono">{{ s.name }}</div>
+      <div class="nt">{{ s.note }}</div>
+    </div>
+    <div class="meter {{ s.tone }}" role="img" aria-label="{{ s.name }} {{ s.pct }}% full"><i style="width:{{ s.pct if s.pct > 1 else 1 }}%"></i></div>
+    <div class="use">{{ s.used }} of {{ s.total }}</div>
+    <div class="pc" {% if s.tone %}style="color:var(--{{ 'red' if s.tone == 'bad' else 'amber' }})"{% endif %}>{{ s.pct }}%</div>
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="lbl">{{ 'Tenant VMs' if ov.admin else 'Servers on this host' }}</h2>
+<div class="ht-vms">
+  <table class="htvm">
+    <thead>
+      <tr>
+        <th scope="col" data-sort="name" data-type="str" tabindex="0" aria-sort="none">Server</th>
+        <th scope="col" data-sort="owner" data-type="str" tabindex="0" aria-sort="none">Owner</th>
+        <th scope="col" data-sort="status" data-type="num" tabindex="0" aria-sort="none">Status</th>
+        <th scope="col" data-sort="cpu" data-type="num" tabindex="0" aria-sort="none">CPU</th>
+        <th scope="col" data-sort="mem" data-type="num" tabindex="0" aria-sort="none">Memory</th>
+        <th scope="col" data-sort="uptime" data-type="num" tabindex="0" aria-sort="none">Uptime</th>
+        <th scope="col" class="num" data-sort="vmid" data-type="num" tabindex="0" aria-sort="none">VMID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in ov.vms %}
+      <tr data-name="{{ v.name }}" data-owner="{{ v.owner }}" data-status="{{ 1 if v.running else 0 }}"
+          data-cpu="{{ v.cpu_pct if v.cpu_pct is not none else -1 }}" data-mem="{{ v.mem_bytes }}"
+          data-uptime="{{ v.uptime_secs }}" data-vmid="{{ v.vmid }}">
+        <td>{% if v.instance_id %}<a href="/servers/{{ v.instance_id }}">{{ v.name }}</a>{% else %}{{ v.name }}{% endif %}</td>
+        <td class="dimc">{{ v.owner }}</td>
+        <td>{% if v.running %}<span class="chip go"><span class="dot"></span>Running</span>{% else %}<span class="chip idle"><span class="dot"></span>Stopped</span>{% endif %}</td>
+        <td class="num">{% if v.cpu_pct is not none %}{{ v.cpu_pct }}% <span class="dimc" style="color:var(--dim)">of {{ v.maxcpu }}</span>{% else %}—{% endif %}</td>
+        <td>
+          {% if v.running %}
+          <div class="vm-mem">
+            <div class="meter {{ 'bad' if v.mem_pct >= 90 else 'warn' if v.mem_pct >= 80 else '' }}"><i style="width:{{ v.mem_pct if v.mem_pct > 1 else 1 }}%"></i></div>
+            <span class="num">{{ v.mem }} / {{ v.maxmem }}</span>
+          </div>
+          {% else %}<span class="num">— / {{ v.maxmem }}</span>{% endif %}
+        </td>
+        <td class="num">{{ v.uptime }}</td>
+        <td class="num dimc">{{ v.vmid }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center; color:var(--dim); padding:1.6rem">Nothing to show yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if not ov.admin %}
+<p class="note" style="margin:.7rem 0 1.5rem">You're seeing your own servers plus ones shared on the Board — other members' servers stay private.</p>
+{% endif %}
+{% endif %}

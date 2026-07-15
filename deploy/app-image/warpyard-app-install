@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# First-boot bootstrap for a Warpyard one-click app. Substitutes the server's hostname and
+# per-server random secrets into the baked compose template, brings the stack up, and records
+# any generated credentials in /root/CREDENTIALS.txt. Idempotent: re-runs on every boot are
+# cheap and `docker compose up -d` re-asserts the stack after reboots. Must NEVER fail the
+# boot — errors are logged, not raised.
+set -u
+LOG=/var/log/warpyard-app.log
+exec >>"$LOG" 2>&1
+echo "== warpyard-app-install $(date -u +%FT%TZ)"
+
+# shellcheck disable=SC1091
+. /etc/warpyard-app.env # APP=<slug> + BASE_DOMAIN, baked at template build
+DIR=/opt/warpyard-app
+HOST="$(hostname -s).${BASE_DOMAIN:-example.com}"
+
+gen() { tr -dc 'a-z0-9' </dev/urandom | head -c 14; }
+
+# secrets are generated once and persisted so re-runs never rotate a live app's passwords
+if [ ! -f "$DIR/.secrets" ]; then
+  printf 'WY_SECRET=%s\nWY_SECRET2=%s\n' "$(gen)" "$(gen)" >"$DIR/.secrets"
+  chmod 600 "$DIR/.secrets"
+fi
+# shellcheck disable=SC1091
+. "$DIR/.secrets"
+
+# only the three ${WY_*} placeholders are substituted — $$ compose escapes stay intact
+sed -e "s|\${WY_HOST}|$HOST|g" \
+  -e "s|\${WY_SECRET}|$WY_SECRET|g" \
+  -e "s|\${WY_SECRET2}|$WY_SECRET2|g" \
+  "$DIR/compose.tpl.yml" >"$DIR/docker-compose.yml"
+
+mkdir -p /srv/media # bind-mount target for media apps (jellyfin); harmless elsewhere
+docker compose -f "$DIR/docker-compose.yml" up -d || echo "compose up failed (will retry next boot)"
+
+if [ ! -f /root/CREDENTIALS.txt ]; then
+  case "$APP" in
+    nextcloud)
+      printf 'Nextcloud admin login\n  user:     admin\n  password: %s\nSign in at https://%s\n' "$WY_SECRET" "$HOST" ;;
+    vaultwarden)
+      printf 'Vaultwarden\n  Create your account at https://%s (do it before sharing the URL).\n  Admin panel token (https://%s/admin): %s\n' "$HOST" "$HOST" "$WY_SECRET" ;;
+    code-server)
+      printf 'code-server password: %s\nOpen https://%s\n' "$WY_SECRET" "$HOST" ;;
+    ghost)
+      printf 'Ghost\n  Finish setup at https://%s/ghost — the first visit creates the admin account.\n' "$HOST" ;;
+    wordpress)
+      printf 'WordPress\n  Finish setup at https://%s — the first visit runs the installer and creates your admin login.\n' "$HOST" ;;
+    *)
+      printf '%s\n  Setup happens in the browser: open https://%s and follow the first-run steps.\n' "$APP" "$HOST" ;;
+  esac >/root/CREDENTIALS.txt
+  chmod 600 /root/CREDENTIALS.txt
+fi
+
+touch "$DIR/.installed"
+exit 0

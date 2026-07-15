@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# First-boot bootstrap for the Minecraft image (runs as mcserver, before LGSM start).
+set -e
+cd /home/mcserver
+if ! ls serverfiles/*.jar >/dev/null 2>&1; then
+  ./mcserver auto-install || true
+fi
+# accept the Mojang EULA (LGSM leaves it false on install)
+mkdir -p serverfiles
+if [ -f serverfiles/eula.txt ]; then
+  sed -i 's/^eula=.*/eula=true/' serverfiles/eula.txt
+else
+  echo 'eula=true' > serverfiles/eula.txt
+fi
+exit 0

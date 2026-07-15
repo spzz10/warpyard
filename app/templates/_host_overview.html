@@ -1,0 +1,4 @@
+{# poll fragment for /host: tiles swap in place; storage + VM sections ride along OOB #}
+{% include "_host_tiles.html" %}
+{# on a hypervisor hiccup (ov none) skip the OOB swap so the last-good sections stay up #}
+{% if oob and ov %}<div id="ht-lower" hx-swap-oob="innerHTML">{% include "_host_lower.html" %}</div>{% endif %}

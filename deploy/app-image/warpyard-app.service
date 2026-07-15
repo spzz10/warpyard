@@ -1,0 +1,14 @@
+[Unit]
+Description=Warpyard one-click app (docker compose stack)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=0
+ExecStart=/usr/local/bin/warpyard-app-install
+
+[Install]
+WantedBy=multi-user.target

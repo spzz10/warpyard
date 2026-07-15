@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% set nav = 'docs' %}
+{% block title %}API reference — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>API reference</h1>
+    <div class="sub">Point your scripts — or your AI — at Warpyard. Everything the dashboard does, you can do over HTTP.</div>
+  </div>
+</div>
+
+<div style="max-width:820px">
+  <nav class="doctabs">
+    <a href="/docs" class="on">API reference</a>
+    <a href="/docs/platform">Platform handbook</a>
+  </nav>
+
+  <!-- basics -->
+  <div class="deflist" style="border-top:none">
+    <div class="def">
+      <div class="dt">Base URL</div>
+      <div class="dd"><code class="copy" data-copy="{{ settings.PUBLIC_URL }}/api/v1">{{ settings.PUBLIC_URL }}/api/v1</code></div>
+    </div>
+    <div class="def">
+      <div class="dt">Auth</div>
+      <div class="dd">
+        <div class="val">Send an API key as a bearer token:</div>
+        <code class="copy" data-copy="Authorization: Bearer wy_your_key_here" style="margin-top:.4rem">Authorization: Bearer wy_your_key_here</code>
+        <p class="note">Create and revoke keys on your <a href="/account">Account</a> page. Keys are shown once.</p>
+      </div>
+    </div>
+    <div class="def">
+      <div class="dt">Responses</div>
+      <div class="dd"><div class="val">JSON. Errors return <span class="mono">{"detail": "…"}</span> with a 4xx status. Actions that
+        change a server return <span class="mono">202 Accepted</span> — the work runs asynchronously; poll the server to watch it settle.</div></div>
+    </div>
+  </div>
+
+  <!-- quick start -->
+  <div class="section">
+    <h2 class="lbl">Quick start — create a server</h2>
+    <pre class="code">curl -s {{ settings.PUBLIC_URL }}/api/v1/plans \
+  -H "Authorization: Bearer $WY_KEY"
+
+curl -s -X POST {{ settings.PUBLIC_URL }}/api/v1/servers \
+  -H "Authorization: Bearer $WY_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-app","plan":"wy-1-1","image":"ubuntu-24.04"}'</pre>
+    <p class="note">To give an AI (or yourself) SSH access, add a key <b>before</b> creating the server — keys are installed at build time.</p>
+  </div>
+
+  <!-- endpoints -->
+  <div class="section">
+    <h2 class="lbl">Account</h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/account</div><div class="epd">Who you are + your server limit and usage.</div></div></div>
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/plans</div><div class="epd">Available server sizes (slug, specs).</div></div></div>
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/images</div><div class="epd">Available OS images (incl. <span class="mono">web-2404</span> push-to-deploy).</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Servers</h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers</div><div class="epd">List your live servers.</div></div></div>
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}</div><div class="epd">One server — status, URL, SSH, domains, deploy remote.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers</div><div class="epd"><span class="mono">{name, plan, image}</span> — create a server.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/actions/{action}</div><div class="epd">action ∈ start · stop · reboot · rebuild · destroy.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/resize</div><div class="epd"><span class="mono">{plan}</span> — move to a bigger plan (disk grows only).</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">SSH keys <span style="color:var(--dim); font-weight:400; text-transform:none; letter-spacing:0">— installed on servers you create next</span></h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/account/ssh-keys</div><div class="epd">List keys on your account.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/account/ssh-keys</div><div class="epd"><span class="mono">{name, public_key}</span> — add a public key.</div></div></div>
+      <div class="ep"><span class="m del">DEL</span><div><div class="path">/account/ssh-keys/{id}</div><div class="epd">Remove a key.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Backups <span style="color:var(--dim); font-weight:400; text-transform:none; letter-spacing:0">— nightly off-host backups, kept 7 daily + 4 weekly</span></h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}/backups</div><div class="epd">List a server's restore points.</div></div></div>
+      <div class="ep"><span class="m put">PUT</span><div><div class="path">/servers/{id}/backups</div><div class="epd"><span class="mono">{enabled}</span> — turn nightly backups on or off.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/backups/actions/backup</div><div class="epd">Take a backup now (server keeps running).</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/backups/actions/restore</div><div class="epd"><span class="mono">{backup_id}</span> — replace the server's disk with a restore point. Destructive; the server reboots.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Custom domains</h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}/domains</div><div class="epd">List a server's custom domains + status.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/domains</div><div class="epd"><span class="mono">{hostname}</span> — attach a domain (returns the DNS record if pending).</div></div></div>
+      <div class="ep"><span class="m del">DEL</span><div><div class="path">/servers/{id}/domains/{hostname}</div><div class="epd">Remove a custom domain.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Snapshots <span style="color:var(--dim); font-weight:400; text-transform:none; letter-spacing:0">— instant on-host restore points</span></h2>
+    <div class="eps">
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}/snapshots</div><div class="epd">List a server's snapshots.</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/snapshots</div><div class="epd"><span class="mono">{name}</span> — take a snapshot now (synchronous).</div></div></div>
+      <div class="ep"><span class="m post">POST</span><div><div class="path">/servers/{id}/snapshots/{name}/actions/rollback</div><div class="epd">Roll back to a snapshot. Destructive; the server reboots.</div></div></div>
+      <div class="ep"><span class="m del">DEL</span><div><div class="path">/servers/{id}/snapshots/{name}</div><div class="epd">Delete a snapshot.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Monitoring &amp; metrics</h2>
+    <div class="eps">
+      <div class="ep"><span class="m put">PUT</span><div><div class="path">/servers/{id}/monitoring</div><div class="epd"><span class="mono">{enabled}</span> — uptime checks + email alerts (a PoppaPing account is set up for your email if you haven't connected one).</div></div></div>
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}/monitoring?period=24h</div><div class="epd">Uptime % and response-time history (24h · 7d · 30d · 90d).</div></div></div>
+      <div class="ep"><span class="m get">GET</span><div><div class="path">/servers/{id}/metrics?timeframe=hour</div><div class="epd">CPU / memory / network history from the host (hour · day · week).</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="lbl">Settings</h2>
+    <div class="eps">
+      <div class="ep"><span class="m put">PUT</span><div><div class="path">/servers/{id}/restart-schedule</div><div class="epd"><span class="mono">{enabled, at}</span> — nightly reboot at "HH:MM" UTC. Game servers wait until nobody's playing.</div></div></div>
+      <div class="ep"><span class="m put">PUT</span><div><div class="path">/servers/{id}/share</div><div class="epd"><span class="mono">{enabled, note}</span> — list the server on the members-only board while it's running.</div></div></div>
+      <div class="ep"><span class="m put">PUT</span><div><div class="path">/account/private-network</div><div class="epd"><span class="mono">{enabled}</span> — let your own servers reach each other on the private network.</div></div></div>
+    </div>
+  </div>
+
+  <!-- push to deploy -->
+  <div class="section">
+    <h2 class="lbl">Push to deploy</h2>
+    <div class="panel" style="max-width:none; margin:0">
+      <p style="margin:0 0 .7rem; color:var(--muted); font-size:.92rem">
+        Any OS server (Ubuntu / Debian) can become a git push target — Netlify-style, but the build &amp; serve
+        happen on your own box (Caddy + Node). No control-plane builds.
+      </p>
+      <pre class="code"># 1. one time, from your computer — installs the add-on on the server over SSH:
+ssh -p &lt;ssh_port&gt; root@{{ settings.EDGE_HOST }} "curl -fsSL {{ settings.PUBLIC_URL }}/setup.sh | bash -s pushdeploy"
+
+# 2. one time, in your project:
+git remote add warpyard ssh://root@{{ settings.EDGE_HOST }}:&lt;ssh_port&gt;/srv/site.git
+
+# 3. every deploy after that:
+git push warpyard main</pre>
+      <p class="note">All three commands — with your server's SSH port already filled in — are on the server's page under
+        <b>Add&#8209;ons</b>. Push <span class="mono">main</span>;
+        if the repo has a <span class="mono">package.json</span> it runs <span class="mono">npm ci &amp;&amp; npm run build</span>
+        and serves <span class="mono">dist/</span> (or build/out/public), otherwise the files as-is.</p>
+    </div>
+  </div>
+
+  <!-- MCP -->
+  <div class="section">
+    <h2 class="lbl">Prefer an AI-native connection?</h2>
+    <div class="panel" style="max-width:none; margin:0">
+      <p style="margin:0 0 .7rem; color:var(--muted); font-size:.92rem">
+        Warpyard is also a <b>Model Context Protocol</b> server — add it to Claude or Cursor and your AI
+        can manage servers directly (OAuth sign-in, no API key to paste).
+      </p>
+      <code class="copy" data-copy="{{ settings.MCP_URL }}/mcp" style="display:block; width:100%">{{ settings.MCP_URL }}/mcp</code>
+      <p class="note">Setup steps (incl. the Claude Code CLI command) are on your <a href="/account">Account</a> page.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .m{font:700 .6rem/1.6 var(--mono); letter-spacing:.04em; padding:.28rem 0; border-radius:6px; display:inline-block;
+    width:46px; text-align:center; flex:none}
+  .m.get{color:var(--green); background:var(--green-soft)}
+  .m.post{color:var(--accent-2); background:var(--accent-soft)}
+  .m.put{color:var(--accent-2); background:var(--accent-soft)}
+  .m.del{color:var(--red); background:var(--red-soft)}
+  .eps{border-top:1px solid var(--line)}
+  .ep{display:flex; gap:.8rem; align-items:flex-start; padding:.7rem 0; border-bottom:1px solid var(--line)}
+  .ep .path{font-family:var(--mono); font-size:.86rem; color:var(--text)}
+  .ep .epd{color:var(--muted); font-size:.82rem; margin-top:.2rem}
+  pre.code{background:var(--bg); border:1px solid var(--line-2); border-radius:11px; padding:1.1rem; overflow-x:auto;
+    font-family:var(--mono); font-size:.8rem; color:var(--text); line-height:1.65; margin:0}
+  .deflist .val{word-break:normal; overflow-wrap:break-word}
+  .doctabs{display:flex; gap:.3rem; margin:0 0 .5rem}
+  .doctabs a{padding:.45rem .8rem; border-radius:8px; font-size:.85rem; color:var(--muted)}
+  .doctabs a:hover{background:var(--surface-2)}
+  .doctabs a.on{background:var(--surface-2); color:var(--text); font-weight:600}
+</style>
+<script>
+  // click-to-copy is wired globally in base.html
+</script>
+{% endblock %}

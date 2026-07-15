@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Create your account — Warpyard{% endblock %}
+{% block content %}
+<div class="panel" style="margin-top:6vh">
+  <div class="brand" style="justify-content:center; margin-bottom:.3rem">
+    <span class="mark" style="font-size:1.8rem">Warpyard</span>
+  </div>
+  {% if not invite %}
+    <p style="text-align:center; color:var(--muted); margin:1rem 0">This invite has already been used or doesn't exist. Ask an admin for a new one.</p>
+    <div class="btn-row"><a class="btn ghost" href="/login" style="width:100%; text-align:center">Back to sign in</a></div>
+  {% else %}
+    <p style="text-align:center; color:var(--muted); margin:.2rem 0 1.4rem">You've been invited. Create your account.</p>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <form method="post" action="/join/{{ token }}">
+      <label class="fld" for="email">Your email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required autofocus
+        {% if invite.email %}value="{{ invite.email }}" readonly{% endif %}>
+      <label class="fld" for="password">Choose a password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+      <p style="color:var(--dim); font-size:.76rem; margin:.35rem 0 0">At least 8 characters.</p>
+      <div class="btn-row"><button class="btn primary" type="submit" style="width:100%">Create account</button></div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

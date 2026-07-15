@@ -1,0 +1,21 @@
+[Unit]
+Description=Warpyard Minecraft (LinuxGSM)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=mcserver
+WorkingDirectory=/home/mcserver
+# first boot: install the server (LGSM downloads it) + accept the EULA, then LGSM starts it
+ExecStartPre=/usr/local/bin/warpyard-mc-install
+ExecStart=/home/mcserver/mcserver start
+ExecStop=/home/mcserver/mcserver stop
+ExecReload=/home/mcserver/mcserver restart
+KillMode=none
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=multi-user.target

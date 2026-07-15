@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Request an invite — Warpyard{% endblock %}
+{% block content %}
+<div style="max-width:440px; margin:8vh auto 0">
+  <div style="text-align:center; margin-bottom:1.4rem">
+    <span class="logo" style="width:40px; height:40px; display:inline-flex; border-radius:11px; background:linear-gradient(135deg,#7c8cff,#5a6cf0)">
+      <svg viewBox="0 0 24 24" style="width:24px; height:24px; margin:auto"><path d="M4.5 8 8 17 12 5 16 17 19.5 8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <h1 style="margin:.7rem 0 .2rem; font-size:1.35rem">Request an invite</h1>
+    <p style="color:var(--muted); margin:0; font-size:.92rem">Warpyard is a small, invite-only cloud.
+      Leave your email and we'll send you an invite when a spot opens up.</p>
+  </div>
+  <div class="panel">
+    {% if sent %}
+    <p style="margin:0; text-align:center">
+      <span class="chip go" style="margin-bottom:.6rem"><span class="dot"></span>Request received</span><br>
+      <span style="color:var(--muted); font-size:.92rem">Keep an eye on your inbox — your invite arrives by email.</span>
+    </p>
+    {% else %}
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <form method="post" action="/request-invite">
+      <label class="fld" for="email" style="margin-top:0">Your email</label>
+      <input id="email" name="email" type="email" required placeholder="you@example.com" autocomplete="email">
+      <label class="fld" for="message">Anything we should know? <span style="color:var(--dim); font-weight:400">(optional)</span></label>
+      <input id="message" name="message" maxlength="300" placeholder="who you are / what you'd host">
+      {# honeypot: bots fill every field — humans never see this one #}
+      <div style="position:absolute; left:-9999px" aria-hidden="true">
+        <label for="website">Website</label>
+        <input id="website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <div class="btn-row"><button class="btn primary" type="submit" style="width:100%">Request invite</button></div>
+    </form>
+    {% endif %}
+  </div>
+  <p class="note" style="text-align:center; margin-top:1rem">Already have an account? <a href="/login">Sign in</a></p>
+</div>
+{% endblock %}

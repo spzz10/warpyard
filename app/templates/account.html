@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% set nav = 'account' %}
+{% block title %}Account — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Account</h1><div class="sub">{{ user.email }}</div></div></div>
+
+<nav class="tabs" role="tablist" aria-label="Account sections">
+  <button role="tab" id="tab-account" data-tab="account" aria-selected="true" aria-controls="pane-account">Account</button>
+  <button role="tab" id="tab-invites" data-tab="invites" aria-selected="false" aria-controls="pane-invites">Invites</button>
+  <button role="tab" id="tab-ai" data-tab="ai" aria-selected="false" aria-controls="pane-ai">AI</button>
+  <button role="tab" id="tab-monitoring" data-tab="monitoring" aria-selected="false" aria-controls="pane-monitoring">Monitoring</button>
+  <button role="tab" id="tab-access" data-tab="access" aria-selected="false" aria-controls="pane-access">Access</button>
+</nav>
+
+<!-- ── Account ── -->
+<section class="pane" id="pane-account" role="tabpanel" aria-labelledby="tab-account">
+  <div class="panel" style="margin:0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Change password</h2>
+    <p style="color:var(--muted); margin:0 0 .6rem; font-size:.9rem">Use at least 8 characters.</p>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    {% if ok %}<div class="err" style="background:var(--green-soft); border-color:rgba(62,207,142,.4); color:#bff3da">Password updated.</div>{% endif %}
+    <form method="post" action="/account/password">
+      <label class="fld" for="current">Current password</label>
+      <input id="current" name="current" type="password" autocomplete="current-password" required>
+      <label class="fld" for="new">New password</label>
+      <input id="new" name="new" type="password" autocomplete="new-password" minlength="8" required>
+      <div class="btn-row"><button class="btn primary" type="submit">Update password</button></div>
+    </form>
+    <p class="note" style="margin-top:.9rem">Don't remember your current password? <a href="/reset">Reset it by email</a>.</p>
+  </div>
+
+  <div class="panel" style="margin:1.4rem 0 0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Private networking</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      When on, <b>your own</b> servers can reach each other over the private network (e.g. an app
+      server talking to its database). Other people's servers are always unreachable either way.
+    </p>
+    <form method="post" action="/account/private-network">
+      <label style="display:flex; align-items:center; gap:.6rem; cursor:pointer">
+        <input type="checkbox" name="enabled" value="on" {{ 'checked' if user.private_network }}
+          onchange="this.form.submit()" style="width:auto">
+        <span>Let my servers talk to each other</span>
+      </label>
+    </form>
+  </div>
+</section>
+
+<!-- ── Invites ── -->
+<section class="pane" id="pane-invites" role="tabpanel" aria-labelledby="tab-invites" hidden>
+  <div class="panel" style="margin:0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Invite a friend</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      Warpyard is invite-only — {% if invites_left is none %}you're an admin, invite away{% else %}you have
+      <b style="color:var(--text)">{{ invites_left }}</b> invite{{ '' if invites_left == 1 else 's' }} left{% endif %}.
+      Each link works once.
+    </p>
+    {% if request.query_params.get('inverr') %}<div class="err">You're out of invite slots.</div>{% endif %}
+    {% if invites_left is none or invites_left > 0 %}
+    <form method="post" action="/account/invites" style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap">
+      <div style="flex:1; min-width:14rem">
+        <label class="fld" style="margin-top:0" for="inv_email">Friend's email {{ '(sends the link)' if email_on else '(optional)' }}</label>
+        <input id="inv_email" name="email" type="email" placeholder="friend@example.com (optional)">
+      </div>
+      <button class="btn primary" type="submit">Create invite</button>
+    </form>
+    {% endif %}
+    {% if my_invites %}
+    <table class="keys" style="margin-top:.9rem">
+      {% for inv in my_invites %}
+      <tr>
+        <td>
+          {% if inv.redeemed_by %}<span style="color:var(--muted)">{{ inv.email or 'invite' }}</span>
+          {% else %}<code class="copy mono" data-copy="{{ base_url }}/join/{{ inv.token }}" title="Click to copy the invite link">{{ base_url }}/join/{{ inv.token[:8] }}…</code>{% endif %}
+        </td>
+        <td style="text-align:right">
+          {% if inv.redeemed_by %}<span class="chip idle">used</span>{% else %}<span class="chip go"><span class="dot"></span>open</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ── AI ── -->
+<section class="pane" id="pane-ai" role="tabpanel" aria-labelledby="tab-ai" hidden>
+  <div class="panel" style="margin:0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Drive Warpyard with an AI</h2>
+    <p style="color:var(--muted); margin:0 0 1rem; font-size:.9rem">
+      Point your AI at Warpyard to build and run servers. Two layers — most tasks use MCP;
+      add an SSH key when your agent needs to configure the server itself.
+    </p>
+    <div style="display:grid; gap:.8rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))">
+      <div style="border:1px solid var(--line); border-radius:12px; padding:.9rem 1rem">
+        <span class="lbl" style="color:var(--accent-2)">Manage — any AI client</span>
+        <h3 style="margin:.15rem 0 .35rem; font-size:1rem; font-weight:620">MCP</h3>
+        <p class="note" style="margin:0">Create, resize, power, back up, and point DNS — no keys to
+          paste. Works with Claude, Cursor, or claude.ai in the browser. Set it up below.</p>
+      </div>
+      <div style="border:1px solid var(--line); border-radius:12px; padding:.9rem 1rem">
+        <span class="lbl">Configure — full control</span>
+        <h3 style="margin:.15rem 0 .35rem; font-size:1rem; font-weight:620">API key + SSH key</h3>
+        <p class="note" style="margin:0">An <a href="#access" data-jump="access">API key</a> drives the
+          <a href="/docs">REST API</a>; an <a href="#access" data-jump="access">SSH key</a> lets your
+          agent log into the server and set it up — install software, deploy custom sites, edit configs.</p>
+      </div>
+    </div>
+    <p class="note" style="margin:.9rem 0 0; padding-top:.8rem; border-top:1px solid var(--line)">
+      <b style="color:var(--muted)">Tip:</b> a local agent like Claude Code can use both at once — MCP to
+      provision, your SSH key to configure. Many sites need neither:
+      <a href="/docs">push-to-deploy</a> and one-click apps cover the common cases.
+    </p>
+  </div>
+
+  <div class="panel" style="margin:1.4rem 0 0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Connect an AI client (MCP)</h2>
+    <p style="color:var(--muted); margin:0 0 1rem; font-size:.9rem">
+      Sign in and approve once — no API key needed. Works with Claude, Cursor, or any MCP client.
+    </p>
+    <h2 class="lbl">Claude Code (CLI)</h2>
+    <code class="copy" data-copy="claude mcp add --transport http warpyard {{ settings.MCP_URL }}/mcp"
+          title="Click to copy" style="display:block; width:100%">claude mcp add --transport http warpyard {{ settings.MCP_URL }}/mcp</code>
+    <p class="note">
+      Then run <span class="mono">/mcp</span> in Claude Code, pick <b>warpyard</b> → <b>Authenticate</b> —
+      your browser opens to sign in and approve. Add <span class="mono">-s user</span> to make it available in every project.
+    </p>
+    <h2 class="lbl" style="margin-top:1.3rem">Claude or Cursor (app)</h2>
+    <p class="note" style="margin:-.4rem 0 .55rem">Add a custom MCP server with this URL:</p>
+    <code class="copy" data-copy="{{ settings.MCP_URL }}/mcp" title="Click to copy"
+          style="display:block; width:100%">{{ settings.MCP_URL }}/mcp</code>
+    <p class="note">Claude: Settings → Connectors → Add custom connector.  Cursor: Settings → MCP → Add.</p>
+    <p class="note" style="margin-top:1.1rem; padding-top:.9rem; border-top:1px solid var(--line)">
+      <b style="color:var(--muted)">Running the CLI on a remote box?</b> Its login callback goes to a
+      local port, so pin it and forward it from where your browser is:<br>
+      <span class="mono">claude mcp add --callback-port 3118 --transport http warpyard {{ settings.MCP_URL }}/mcp</span><br>
+      then <span class="mono">ssh -L 3118:localhost:3118 you@that-box</span> before authenticating.
+    </p>
+  </div>
+</section>
+
+<!-- ── Monitoring ── -->
+<section class="pane" id="pane-monitoring" role="tabpanel" aria-labelledby="tab-monitoring" hidden>
+  <div class="panel" style="margin:0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Monitoring — PoppaPing</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      <a href="{{ settings.POPPAPING_BASE_URL }}" target="_blank" rel="noopener">PoppaPing</a> watches your servers from the
+      outside and alerts you when one stops answering. Connect a free account and every server's page gets a
+      one-click <b>Monitor with PoppaPing</b> button.
+    </p>
+    {% if request.query_params.get('pperr') %}<div class="err">{{ request.query_params.get('pperr') }}</div>{% endif %}
+    {% if user.poppaping_api_key %}
+    <div style="display:flex; align-items:center; gap:.7rem; flex-wrap:wrap">
+      <span class="chip go"><span class="dot"></span>Connected (…{{ user.poppaping_api_key[-4:] }})</span>
+      <form method="post" action="/account/poppaping" style="display:inline">
+        <button class="btn" type="submit" name="disconnect" value="1">Disconnect</button>
+      </form>
+    </div>
+    {% else %}
+    {% if partner_on %}
+    <form method="post" action="/account/poppaping/provision" style="margin-bottom:.9rem">
+      <button class="btn primary" type="submit">Create my PoppaPing account</button>
+    </form>
+    <p class="note" style="margin:0 0 1rem">One click — we create a free PoppaPing account for
+      <b style="color:var(--muted)">{{ user.email }}</b> and connect it here. (To sign in on PoppaPing
+      itself later, use "forgot password" with that email.)</p>
+    <p class="note" style="margin:0 0 .5rem">Already have a PoppaPing account? Paste an API key instead:</p>
+    {% endif %}
+    <form method="post" action="/account/poppaping" style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap">
+      <div style="flex:1; min-width:14rem">
+        <label class="fld" style="margin-top:0" for="pp_key">API key</label>
+        <input id="pp_key" name="api_key" class="mono" placeholder="pp_live_…" autocomplete="off">
+      </div>
+      <button class="btn" type="submit">Connect</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ── Access (keys, SSH, domains) ── -->
+<section class="pane" id="pane-access" role="tabpanel" aria-labelledby="tab-access" hidden>
+  <div class="panel" style="margin:0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">API keys</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      Point your own scripts or AI at the API. Base URL <span class="mono" style="color:var(--accent-2)">{{ settings.PUBLIC_URL }}/api/v1</span> — send <span class="mono">Authorization: Bearer &lt;key&gt;</span>. See the <a href="/docs">API reference</a>.
+    </p>
+    {% if new_key %}
+    <div class="err" style="background:var(--green-soft); border-color:rgba(62,207,142,.4); color:#bff3da">
+      <b>Copy your new key now — it won't be shown again:</b>
+      <code class="mono copy" data-copy="{{ new_key }}" title="Click to copy" style="display:block; margin-top:.4rem; word-break:break-all; cursor:pointer; color:#eaeef4">{{ new_key }}</code>
+    </div>
+    {% endif %}
+    {% if api_keys %}
+    <table class="keys">
+      <tr><th>Name</th><th>Key</th><th>Last used</th><th></th></tr>
+      {% for k in api_keys %}
+      <tr>
+        <td>{{ k.name }}</td>
+        <td class="fp">{{ k.prefix }}…</td>
+        <td class="fp">{{ k.last_used_at.strftime('%Y-%m-%d') if k.last_used_at else 'never' }}</td>
+        <td style="text-align:right">
+          <form method="post" action="/account/api-keys/{{ k.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Revoke this key? Anything using it stops working.')">
+            <button class="btn danger ghost" type="submit" style="padding:.4rem .7rem">Revoke</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:var(--muted); font-size:.9rem">No API keys yet.</p>
+    {% endif %}
+    <form method="post" action="/account/api-keys" style="display:flex; gap:.6rem; margin-top:.8rem; align-items:flex-end">
+      <div style="flex:1"><label class="fld" style="margin-top:0" for="keyname">New key name</label>
+        <input id="keyname" name="name" placeholder="my-laptop"></div>
+      <button class="btn primary" type="submit">Create key</button>
+    </form>
+  </div>
+
+  <div class="panel" style="margin:1.4rem 0 0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">SSH keys</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      Public keys here are installed on every server you create afterwards (and re-installed on rebuild),
+      so you can connect over SSH. Add your key <b>before</b> creating a server.
+    </p>
+    {% if key_error %}<div class="err">{{ key_error }}</div>{% endif %}
+    {% if user.ssh_keys %}
+    <table class="keys">
+      <tr><th>Name</th><th>Fingerprint</th><th></th></tr>
+      {% for k in user.ssh_keys %}
+      <tr>
+        <td>{{ k.name }}</td>
+        <td class="fp">{{ k.public_key.split()[1][:32] if k.public_key.split()|length > 1 else k.public_key[:32] }}…</td>
+        <td style="text-align:right">
+          <form method="post" action="/keys/{{ k.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Remove this SSH key?')">
+            <button class="btn danger ghost" type="submit" style="padding:.4rem .7rem">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:var(--muted); font-size:.9rem">No SSH keys yet.</p>
+    {% endif %}
+    <form method="post" action="/keys" style="margin-top:.8rem">
+      <label class="fld" style="margin-top:0" for="public_key">Add a public key</label>
+      <textarea id="public_key" name="public_key" class="mono" rows="3" placeholder="ssh-ed25519 AAAA… you@host" required></textarea>
+      <div style="display:flex; gap:.6rem; margin-top:.6rem; align-items:flex-end">
+        <div style="flex:1"><label class="fld" style="margin-top:0" for="keyname_ssh">Name</label>
+          <input id="keyname_ssh" name="name" placeholder="laptop" required></div>
+        <button class="btn primary" type="submit">Add key</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel" style="margin:1.4rem 0 0">
+    <h2 style="margin:0 0 .3rem; font-size:1.1rem; font-weight:640">Custom domains</h2>
+    <p style="color:var(--muted); margin:0 0 .8rem; font-size:.9rem">
+      Point your own domain at a server (alongside its free <span class="mono">.{{ settings.BASE_DOMAIN }}</span> address).
+      A domain belongs to a specific server, so you <b>add and remove them on each server's page</b> —
+      this is a read-only overview.
+    </p>
+    {% if domains %}
+    <table class="keys">
+      <tr><th>Domain</th><th>Server</th><th>Status</th></tr>
+      {% for d in domains %}
+      <tr>
+        <td>{% if d.status == 'active' %}<a href="https://{{ d.hostname }}" target="_blank" rel="noopener" class="mono">{{ d.hostname }}</a>{% else %}<span class="mono">{{ d.hostname }}</span>{% endif %}</td>
+        <td><a href="/servers/{{ d.server_id }}">{{ d.server }}</a></td>
+        <td>{% if d.status == 'active' %}<span class="light go"><span class="dot go"></span>Active</span>{% else %}<span class="light" style="color:var(--amber)"><span class="dot" style="background:var(--amber)"></span>Pending DNS</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:var(--muted); font-size:.9rem">No custom domains yet. Open any server and use its <b>Custom domains</b> card to add one.</p>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+  .tabs{display:flex; gap:.15rem; border-bottom:1px solid var(--line); margin:1.4rem 0 0;
+    overflow-x:auto; scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs [role=tab]{appearance:none; background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--muted); font:550 .9rem/1 var(--sans); padding:.7rem .9rem; cursor:pointer; white-space:nowrap; transition:color .14s}
+  .tabs [role=tab]:hover{color:var(--text)}
+  .tabs [role=tab][aria-selected="true"]{color:var(--text); border-bottom-color:var(--accent)}
+  .tabs [role=tab]:focus-visible{outline:2px solid var(--accent); outline-offset:-2px; border-radius:6px}
+  .pane{padding-top:1.4rem}
+  .pane[hidden]{display:none}
+</style>
+<script>
+  (function(){
+    var tabs = Array.from(document.querySelectorAll('.tabs [role=tab]'));
+    var ids = tabs.map(function(t){ return t.dataset.tab; });
+    function show(id, push){
+      if(ids.indexOf(id) < 0) id = 'account';
+      tabs.forEach(function(t){
+        var on = t.dataset.tab === id;
+        t.setAttribute('aria-selected', on);
+        var pane = document.getElementById('pane-' + t.dataset.tab);
+        if(pane) pane.hidden = !on;
+      });
+      if(push) history.replaceState(null, '', '#' + id);
+    }
+    tabs.forEach(function(t){
+      t.addEventListener('click', function(){ show(t.dataset.tab, true); });
+      t.addEventListener('keydown', function(e){
+        if(e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        var i = tabs.indexOf(t), n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        n.focus(); show(n.dataset.tab, true);
+      });
+    });
+    // in-page cross-tab links (e.g. "API key" in the AI tab jumps to Access)
+    document.querySelectorAll('[data-jump]').forEach(function(a){
+      a.addEventListener('click', function(e){ e.preventDefault(); show(a.dataset.jump, true); window.scrollTo(0, 0); });
+    });
+    var q = new URLSearchParams(location.search);
+    var init = location.hash.slice(1);
+    if(q.get('pperr')) init = 'monitoring';
+    else if(q.get('inverr')) init = 'invites';
+    else if(q.get('keyerr')) init = 'access';
+    show(init || 'account', false);
+  })();
+</script>
+{% endblock %}

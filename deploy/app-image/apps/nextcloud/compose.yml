@@ -1,0 +1,40 @@
+# Nextcloud + MariaDB. Admin account is created automatically (NEXTCLOUD_ADMIN_*),
+# credentials land in /root/CREDENTIALS.txt. Overwrite* settings teach it about the
+# https edge in front of it.
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WY_SECRET2}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${WY_SECRET2}
+    volumes:
+      - db:/var/lib/mysql
+
+  nextcloud:
+    image: nextcloud:31-apache
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "80:80"
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${WY_SECRET2}
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: ${WY_SECRET}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${WY_HOST}
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: ${WY_HOST}
+      OVERWRITECLIURL: https://${WY_HOST}
+    volumes:
+      - nextcloud:/var/www/html
+
+volumes:
+  db:
+  nextcloud:

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Authorize — Warpyard{% endblock %}
+{% block content %}
+<div class="panel" style="margin-top:6vh">
+  <div class="brand" style="justify-content:center; margin-bottom:.3rem">
+    <span class="mark" style="font-size:1.6rem">Warpyard</span>
+  </div>
+  <h1 style="text-align:center; font-size:1.15rem; font-weight:640; margin:.6rem 0 .2rem">Authorize access</h1>
+  <p style="text-align:center; color:var(--muted); margin:0 0 1.2rem; font-size:.92rem">
+    <b style="color:var(--text)">{{ client_name }}</b> wants to manage your servers
+    as <b style="color:var(--text)">{{ user.email }}</b>.
+  </p>
+
+  <div class="err" style="background:transparent; border-color:var(--line); color:var(--muted); font-size:.88rem">
+    It will be able to <b style="color:var(--text)">list, create, resize, and destroy</b> your servers on your behalf.
+    You can revoke this from your account at any time.
+  </div>
+
+  <form method="post" action="/oauth/authorize" style="margin-top:1.1rem">
+    <input type="hidden" name="client_id" value="{{ params.client_id }}">
+    <input type="hidden" name="redirect_uri" value="{{ params.redirect_uri }}">
+    <input type="hidden" name="code_challenge" value="{{ params.code_challenge }}">
+    <input type="hidden" name="state" value="{{ params.state or '' }}">
+    <input type="hidden" name="scope" value="{{ params.scope or '' }}">
+    <div class="btn-row" style="display:flex; gap:.6rem">
+      <button class="btn primary" type="submit" name="decision" value="approve" style="flex:1">Approve</button>
+      <button class="btn ghost" type="submit" name="decision" value="deny" style="flex:1">Deny</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

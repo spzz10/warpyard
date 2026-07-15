@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Warpyard server is ready</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0id3kiIHgxPSIwIiB5MT0iMCIgeDI9IjI0IiB5Mj0iMjQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzhhOTlmZiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0YzViZjAiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcng9IjYiIGZpbGw9InVybCgjd3kpIi8+CiAgPHBhdGggZD0iTTQuNSA4IDggMTcgMTIgNSAxNiAxNyAxOS41IDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyLjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0d13;--surface:#11161f;--surface-2:#161c27;--line:#212a37;--line-2:#2c3746;
+    --text:#eaeef4;--muted:#94a1b4;--dim:#606d7e;--accent:#6e8bff;--accent-2:#8aa2ff;--green:#3ecf8e;
+    --sans:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+  *{box-sizing:border-box} body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    color:var(--text);font-family:var(--sans);line-height:1.6;letter-spacing:-.006em;-webkit-font-smoothing:antialiased;padding:2rem;
+    background:radial-gradient(900px 480px at 82% -10%,rgba(110,139,255,.12),transparent 62%),
+      radial-gradient(720px 520px at -6% 108%,rgba(62,207,142,.07),transparent 60%),var(--bg)}
+  .card{max-width:600px;width:100%;border:1px solid var(--line);border-radius:18px;padding:clamp(1.6rem,5vw,2.6rem);
+    background:linear-gradient(180deg,var(--surface),var(--bg));box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
+  .badge{display:inline-flex;align-items:center;gap:.5rem;font:600 .66rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;
+    color:var(--green);border:1px solid rgba(62,207,142,.3);background:rgba(62,207,142,.1);padding:.4rem .7rem;border-radius:999px}
+  .badge .d{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(62,207,142,.2)}
+  h1{font-size:clamp(1.5rem,4vw,2rem);font-weight:650;letter-spacing:-.02em;margin:1.1rem 0 .5rem;text-wrap:balance}
+  p{color:var(--muted);margin:0 0 1.3rem}
+  .step{display:flex;gap:.8rem;padding:.9rem 0;border-top:1px solid var(--line)}
+  .step .n{flex:none;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font:600 .8rem/1 var(--mono);
+    background:var(--surface-2);border:1px solid var(--line-2);color:var(--accent-2)}
+  .step .t{font-size:.95rem} .step .t b{color:var(--text);font-weight:600}
+  code{font-family:var(--mono);font-size:.82rem;background:var(--bg);border:1px solid var(--line-2);border-radius:6px;padding:.12rem .4rem;color:var(--text)}
+  pre{font-family:var(--mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line-2);border-radius:9px;padding:.8rem .9rem;overflow-x:auto;color:var(--text);margin:.5rem 0 0}
+  .foot{margin-top:1.6rem;color:var(--dim);font-size:.82rem}
+  .foot a{color:var(--accent-2);text-decoration:none}
+  .brand{display:inline-flex;align-items:center;gap:.45rem;font-weight:700}
+  .logo{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:linear-gradient(145deg,var(--accent),#4d6bf0)}
+  .logo svg{width:12px;height:12px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge"><span class="d"></span>Server is up</span>
+    <h1>Your server is ready — nothing's running here yet.</h1>
+    <p>You're seeing this because there's no web server listening on port 80. As soon as you start one, it takes over this address automatically.</p>
+    <div class="step"><div class="n">1</div><div class="t"><b>Connect over SSH</b> with the command shown on your dashboard (<code>ssh -p &lt;port&gt; root@edge.example.com</code>).</div></div>
+    <div class="step"><div class="n">2</div><div class="t"><b>Start something on port 80.</b> Anything works — a quick test:<pre>python3 -m http.server 80</pre></div></div>
+    <div class="step"><div class="n">3</div><div class="t"><b>Reload this page.</b> Your app now serves here, with HTTPS handled for you.</div></div>
+    <div class="foot">
+      <span class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M4 13l8-9-2 7h6l-8 9 2-7z" fill="#0a0d13"/></svg></span>Warpyard</span>
+      &nbsp;·&nbsp; <a href="https://app.example.com">Dashboard</a>
+    </div>
+  </div>
+</body>
+</html>

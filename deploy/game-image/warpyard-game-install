@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# First-boot bootstrap for any LinuxGSM game (runs as gameserver, reads GAME from env).
+# Generates a per-server random password for games that require one (Valheim/Zomboid) and
+# records it where the owner can read it, then installs the game if not already present.
+set -e
+. /etc/warpyard-game.env
+cd /home/gameserver
+CFG="lgsm/config-lgsm/${GAME}/common.cfg"
+mkdir -p "$(dirname "$CFG")"
+CREDS=/home/gameserver/CREDENTIALS.txt
+
+gen() { tr -dc 'a-z0-9' </dev/urandom | head -c 14; }  # 14 chars, >=5, never contains "Warpyard"
+
+case "$GAME" in
+  vhserver)  # Valheim won't start without a serverpassword (>=5, not containing the server name)
+    if ! grep -q '^serverpassword=' "$CFG" 2>/dev/null; then
+      pw=$(gen)
+      printf 'servername="Warpyard"\nserverpassword="%s"\n' "$pw" >> "$CFG"
+      printf 'Valheim join password: %s\n(change it in %s, then restart)\n' "$pw" "$CFG" > "$CREDS"
+    fi ;;
+  pzserver)  # Project Zomboid needs an admin password
+    if ! grep -q '^adminpassword=' "$CFG" 2>/dev/null; then
+      pw=$(gen)
+      printf 'adminpassword="%s"\n' "$pw" >> "$CFG"
+      printf 'Project Zomboid admin password: %s\n(change it in %s, then restart)\n' "$pw" "$CFG" > "$CREDS"
+    fi ;;
+esac
+
+if [ -z "$(ls -A serverfiles 2>/dev/null)" ]; then
+  ./"${GAME}" auto-install || true
+fi
+exit 0

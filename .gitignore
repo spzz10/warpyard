@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+*.db
+.env
+.coverage
+coverage.xml
+coverage-html/
+.pytest_cache/
+.ruff_cache/
+.env.local
+seed.pub

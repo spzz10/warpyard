@@ -1,0 +1,34 @@
+# Ghost publishing + MySQL 8 (Ghost 5 requires MySQL 8). Admin account is created on
+# the first visit to /ghost.
+# NOTE: the -debian tag is load-bearing — Oracle-Linux-based mysql:8 images need
+# x86-64-v2, which the tenant qemu64 vCPU model doesn't expose (glibc fatal on boot).
+services:
+  db:
+    image: mysql:8.0-debian
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WY_SECRET2}
+      MYSQL_DATABASE: ghost
+    volumes:
+      - db:/var/lib/mysql
+
+  ghost:
+    image: ghost:5
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "80:2368"
+    environment:
+      url: https://${WY_HOST}
+      database__client: mysql
+      database__connection__host: db
+      database__connection__user: root
+      database__connection__password: ${WY_SECRET2}
+      database__connection__database: ghost
+    volumes:
+      - ghost:/var/lib/ghost/content
+
+volumes:
+  db:
+  ghost:

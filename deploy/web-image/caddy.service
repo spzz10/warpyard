@@ -1,0 +1,12 @@
+[Unit]
+Description=Caddy (Warpyard web image)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+Restart=always
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

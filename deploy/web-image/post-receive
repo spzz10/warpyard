@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Warpyard push-to-deploy hook (baked into the web-2404 golden image at
+# /srv/site.git/hooks/post-receive). Push a repo to this server and it builds & serves it.
+# Contract: push to `main`. If package.json exists -> `npm ci && npm run build`, then the
+# first of dist/ build/ out/ public/ is published; otherwise the checkout itself is published.
+# The publish is an atomic symlink swap of /var/www/site. Output goes to the pusher's terminal.
+set -euo pipefail
+export PATH="/usr/local/bin:/usr/bin:/bin"
+REPO=/srv/site.git
+WEBROOT=/var/www/site
+
+while read -r _old newrev ref; do
+  if [ "$ref" != "refs/heads/main" ]; then
+    echo "warpyard: '$ref' pushed — only 'main' is deployed, skipping."
+    continue
+  fi
+  echo "warpyard: deploying ${newrev:0:8} …"
+  WORK=$(mktemp -d)
+  git --git-dir="$REPO" --work-tree="$WORK" checkout -f main
+
+  PUB="$WORK"
+  if [ -f "$WORK/package.json" ]; then
+    echo "warpyard: package.json found → npm ci && npm run build"
+    ( cd "$WORK" && npm ci && npm run build )
+    for d in dist build out public; do
+      if [ -d "$WORK/$d" ]; then PUB="$WORK/$d"; break; fi
+    done
+  fi
+
+  REL="/var/www/releases/$(date +%Y%m%d%H%M%S)-${newrev:0:8}"
+  mkdir -p /var/www/releases
+  cp -aT "$PUB" "$REL"
+  ln -sfnT "$REL" "$WEBROOT"          # atomic publish
+  ls -1dt /var/www/releases/*/ 2>/dev/null | tail -n +3 | xargs -r rm -rf  # cap disk use
+  rm -rf "$WORK"
+  echo "warpyard: live ✓  https://$(hostname -f 2>/dev/null || echo your-domain)/ is serving your site."
+done

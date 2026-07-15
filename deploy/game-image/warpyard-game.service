@@ -1,0 +1,22 @@
+[Unit]
+Description=Warpyard game server (LinuxGSM)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=gameserver
+WorkingDirectory=/home/gameserver
+EnvironmentFile=/etc/warpyard-game.env
+# first boot installs the game (LGSM download); then LGSM starts it
+ExecStartPre=/usr/local/bin/warpyard-game-install
+ExecStart=/usr/local/bin/warpyard-game-ctl start
+ExecStop=/usr/local/bin/warpyard-game-ctl stop
+ExecReload=/usr/local/bin/warpyard-game-ctl restart
+KillMode=none
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=25
+
+[Install]
+WantedBy=multi-user.target

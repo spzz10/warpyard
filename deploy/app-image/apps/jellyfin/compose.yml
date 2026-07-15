@@ -1,0 +1,18 @@
+# Jellyfin media server. Upload media to /srv/media on the VM (scp/sftp over the SSH
+# forward) — it appears as /media inside Jellyfin when adding libraries.
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    restart: unless-stopped
+    ports:
+      - "80:8096"
+    environment:
+      JELLYFIN_PublishedServerUrl: https://${WY_HOST}
+    volumes:
+      - config:/config
+      - cache:/cache
+      - /srv/media:/media
+
+volumes:
+  config:
+  cache:

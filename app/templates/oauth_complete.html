@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Access approved — Warpyard{% endblock %}
+{% block content %}
+<div class="panel" style="margin-top:5vh; max-width:520px">
+  <div style="display:flex; align-items:center; gap:.6rem; margin-bottom:.2rem">
+    <span style="width:26px; height:26px; border-radius:50%; background:var(--green-soft); color:var(--green);
+      display:grid; place-items:center; font-weight:700; flex:none">✓</span>
+    <h1 style="margin:0; font-size:1.3rem; font-weight:600">Access approved</h1>
+  </div>
+  <p style="color:var(--muted); margin:.4rem 0 1.3rem; font-size:.94rem">
+    Head back to the app you were connecting — it should continue on its own. If it doesn't,
+    use one of the options below.
+  </p>
+
+  <!-- Best-effort handoff to a same-machine local listener (harmless if it's elsewhere). -->
+  <img src="{{ callback_url }}" alt="" width="1" height="1" referrerpolicy="no-referrer"
+       style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none">
+
+  <a class="btn primary" href="{{ callback_url }}" style="width:100%; justify-content:center">Continue to your app</a>
+
+  <div class="section" style="margin-top:1.6rem">
+    <div class="lbl">If nothing happened — or your client is on another machine</div>
+    <p class="note" style="margin:-.4rem 0 .7rem">
+      Paste this URL into your client's prompt (Claude Code / Cursor will ask for it):
+    </p>
+    <code class="copy" data-copy="{{ callback_url }}" title="Click to copy"
+          style="display:block; width:100%">{{ callback_url }}</code>
+    <p class="note" style="margin:.9rem 0 .4rem">Some clients just want the code:</p>
+    <code class="copy" data-copy="{{ code }}" title="Click to copy"
+          style="display:block; width:100%">{{ code }}</code>
+    <p class="note" style="margin-top:1rem">This code works once and expires in about {{ minutes }} minutes.</p>
+  </div>
+</div>
+
+<script>
+  // click-to-copy is wired globally in base.html
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+# WordPress + MariaDB. Edge terminates TLS and proxies HTTP with X-Forwarded-Proto,
+# so WordPress must trust that header or it redirect-loops / serves mixed content.
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WY_SECRET2}
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: ${WY_SECRET2}
+    volumes:
+      - db:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:6
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "80:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: ${WY_SECRET2}
+      WORDPRESS_CONFIG_EXTRA: |
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          $$_SERVER['HTTPS'] = 'on';
+        }
+        define('WP_HOME', 'https://${WY_HOST}');
+        define('WP_SITEURL', 'https://${WY_HOST}');
+    volumes:
+      - wordpress:/var/www/html
+
+volumes:
+  db:
+  wordpress:

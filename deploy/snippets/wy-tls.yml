@@ -1,0 +1,41 @@
+#cloud-config
+# Warpyard tenant-side TLS (the TLS_SNIPPET in app/config.py): each web VM terminates its
+# own HTTPS with its own Let's Encrypt cert (via TLS-ALPN-01 over the edge's SNI
+# passthrough) and reverse-proxies to the app on :80. The edge only ever sees ciphertext.
+#
+# INSTALL: replace example.com below with your BASE_DOMAIN, then copy this file to a
+# snippet-enabled storage on the Proxmox node, e.g. /var/lib/vz/snippets/wy-tls.yml
+# (matching TLS_SNIPPET=vendor=local:snippets/wy-tls.yml).
+write_files:
+  - path: /etc/caddy/Caddyfile
+    content: |
+      {
+      	auto_https disable_redirects
+      }
+      import /run/wy-site.caddy
+  - path: /usr/local/bin/wy-caddy-conf.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # (re)generate the per-host site file from the VM's own hostname
+      fqdn="$(hostname -s).example.com"
+      printf '%s {\n\treverse_proxy localhost:80\n}\n' "$fqdn" > /run/wy-site.caddy
+  - path: /etc/systemd/system/wy-caddy.service
+    content: |
+      [Unit]
+      Description=Warpyard tenant TLS (Caddy)
+      After=network-online.target
+      Wants=network-online.target
+      [Service]
+      ExecStartPre=/usr/local/bin/wy-caddy-conf.sh
+      ExecStart=/usr/local/bin/caddy run --config /etc/caddy/Caddyfile
+      Restart=on-failure
+      RestartSec=3
+      AmbientCapabilities=CAP_NET_BIND_SERVICE
+      LimitNOFILE=1048576
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - [ bash, -c, "curl -fsSL -o /usr/local/bin/caddy 'https://caddyserver.com/api/download?os=linux&arch=amd64' && chmod +x /usr/local/bin/caddy" ]
+  - [ systemctl, daemon-reload ]
+  - [ systemctl, enable, --now, wy-caddy.service ]

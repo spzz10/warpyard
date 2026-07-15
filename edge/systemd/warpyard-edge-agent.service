@@ -1,0 +1,15 @@
+[Unit]
+Description=Warpyard edge agent (pull routes, render Caddy, manage forwards)
+After=network.target caddy.service
+
+[Service]
+Environment=WARPYARD_CP_URL=http://<control-plane-ip>:8000
+Environment=WARPYARD_EDGE_TOKEN=<EDGE_SYNC_TOKEN from the control plane .env>
+Environment=WARPYARD_POLL=15
+ExecStart=/usr/bin/python3 /usr/local/bin/warpyard-edge-agent
+Restart=always
+# root: the agent writes /etc/caddy, manages socat systemd units, and edits ufw
+User=root
+
+[Install]
+WantedBy=multi-user.target

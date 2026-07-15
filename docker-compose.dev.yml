@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: warpyard
+      POSTGRES_USER: warpyard
+      POSTGRES_PASSWORD: warpyard-dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://warpyard:warpyard-dev@postgres:5432/warpyard
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  worker:
+    build: .
+    command: python -m app.jobs.worker
+    environment:
+      DATABASE_URL: postgresql://warpyard:warpyard-dev@postgres:5432/warpyard
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

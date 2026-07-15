@@ -1,0 +1,26 @@
+<div class="btn-row" id="controls" hx-get="/servers/{{ b.id }}/controls" hx-trigger="every 3s [document.visibilityState=='visible']"
+     hx-ext="morph" hx-swap="morph:outerHTML">
+  {% if b.running %}
+  <a class="btn go" href="/servers/{{ b.id }}/console" target="_blank" rel="noopener">Open console</a>
+  <button class="btn" hx-post="/servers/{{ b.id }}/reboot" hx-target="#controls" hx-swap="none">Reboot</button>
+  <button class="btn" hx-post="/servers/{{ b.id }}/stop" hx-target="#controls" hx-swap="none">Power off</button>
+  <a class="btn" href="/servers/{{ b.id }}/resize">Resize</a>
+  <button class="btn" hx-post="/servers/{{ b.id }}/rebuild" hx-target="#controls" hx-swap="none"
+    hx-confirm="Rebuild {{ b.label }}? Everything on the disk is wiped and reinstalled fresh — same name, IP and URL.">Rebuild</button>
+  {% elif b.status == 'stopped' %}
+  <button class="btn go" hx-post="/servers/{{ b.id }}/start" hx-target="#controls" hx-swap="none">Boot</button>
+  <a class="btn" href="/servers/{{ b.id }}/resize">Resize</a>
+  <button class="btn" hx-post="/servers/{{ b.id }}/rebuild" hx-target="#controls" hx-swap="none"
+    hx-confirm="Rebuild {{ b.label }}? Everything on the disk is wiped and reinstalled fresh — same name, IP and URL.">Rebuild</button>
+  {% elif b.busy %}
+  <button class="btn" disabled>Working…</button>
+  {% endif %}
+  <button class="btn danger" style="margin-left:auto"
+    hx-post="/servers/{{ b.id }}/destroy" hx-confirm="Delete {{ b.label }}? The VM and its disk are erased for good."
+    hx-target="#controls" hx-swap="none" hx-on::after-request="location.href='/'">Delete</button>
+</div>
+{% if not full_page %}
+{# OOB fragments only for the 3s poll — on the full page these would render visible duplicates #}
+<span id="status-chip" hx-swap-oob="true" class="chip {{ b.tone }}"><span class="dot"></span>{{ b.status_label }}</span>
+{% with oob = true %}{% include "_players_chip.html" %}{% endwith %}
+{% endif %}

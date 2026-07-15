@@ -1,0 +1,11 @@
+{% if servers %}
+<div class="list">
+  {% for b in servers %}{% include "_card.html" %}{% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="big">No servers yet.</div>
+  <div>Create your first one — it'll be running in about a minute.</div>
+  <div class="btn-row" style="justify-content:center"><a class="btn primary" href="/new">Create server</a></div>
+</div>
+{% endif %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Reset password — Warpyard{% endblock %}
+{% block content %}
+<div class="panel" style="margin-top:8vh; max-width:400px">
+  <div style="text-align:center; margin-bottom:1.2rem">
+    <span style="display:inline-grid; place-items:center; width:44px; height:44px; border-radius:12px;
+      background:linear-gradient(150deg,#8a99ff,#4c5bf0); box-shadow:0 10px 30px -12px var(--accent)">
+      <svg viewBox="0 0 24 24" width="26" height="26"><path d="M4.5 8 8 17 12 5 16 17 19.5 8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <h1 style="font-size:1.3rem; font-weight:600; margin:.8rem 0 .2rem">Reset password</h1>
+  </div>
+  {% if sent %}
+  <div class="err" style="background:var(--green-soft); border-color:rgba(63,201,138,.4); color:#bff3da">
+    If an account exists for that email, we've sent a reset link. Check your inbox — it works once and expires in an hour.
+  </div>
+  <div class="btn-row"><a class="btn ghost" href="/login" style="width:100%; justify-content:center">Back to sign in</a></div>
+  {% else %}
+  <p style="color:var(--muted); margin:0 0 1.2rem; text-align:center; font-size:.92rem">Enter your email and we'll send a link to choose a new password.</p>
+  <form method="post" action="/reset">
+    <label class="fld" for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    <div class="btn-row"><button class="btn primary" type="submit" style="width:100%">Send reset link</button></div>
+  </form>
+  <p style="text-align:center; margin-top:1.2rem"><a href="/login" style="color:var(--muted); font-size:.85rem">← Back to sign in</a></p>
+  {% endif %}
+</div>
+{% endblock %}

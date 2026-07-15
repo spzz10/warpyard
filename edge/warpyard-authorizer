@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Warpyard edge on-demand-TLS authorizer.
+
+Caddy calls GET /authorize?domain=<host> before issuing a cert for <host>.
+We approve only hostnames that have a live route on this edge (a snippet in
+/etc/caddy/routes.d), which the control plane manages. This stops anyone from
+pointing DNS at the edge and exhausting ACME rate limits.
+
+Bound to localhost only. Config via env:
+  WARPYARD_BASE_DOMAIN   your base domain (apex + www/app/mcp are always approved)
+"""
+import glob
+import os
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
+
+ROUTES_DIR = "/etc/caddy/routes.d"
+BASE = os.environ.get("WARPYARD_BASE_DOMAIN", "example.com").lower().strip(".")
+STATIC_OK = {BASE, f"www.{BASE}", f"app.{BASE}", f"mcp.{BASE}"}
+
+
+def authorized_hosts() -> set[str]:
+    hosts: set[str] = set(STATIC_OK)
+    for path in glob.glob(os.path.join(ROUTES_DIR, "*.caddy")):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                # snippet lines look like: @name host <fqdn> [more...]
+                if line.startswith("@") and " host " in line:
+                    parts = line.split()
+                    hi = parts.index("host")
+                    hosts.update(parts[hi + 1 :])
+    return hosts
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        q = parse_qs(urlparse(self.path).query)
+        domain = (q.get("domain") or [""])[0].lower().strip(".")
+        ok = domain in authorized_hosts()
+        self.send_response(200 if ok else 403)
+        self.end_headers()
+        self.wfile.write(b"ok" if ok else b"denied")
+
+    def log_message(self, *a):  # quiet
+        pass
+
+
+if __name__ == "__main__":
+    HTTPServer(("127.0.0.1", 9280), Handler).serve_forever()

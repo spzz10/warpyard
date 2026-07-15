@@ -1,0 +1,8 @@
+{# live player-count chip for game servers — rendered in the server pagehead and
+   OOB-refreshed by the 3s controls poll (oob=true). Hidden until a query succeeds. #}
+{% if b.connect %}
+<span id="players-chip" {% if oob %}hx-swap-oob="true" {% endif %}class="chip {{ 'go' if b.connect.players and b.connect.players.online else 'idle' }}"
+      {% if not b.connect.players %}hidden{% endif %} title="Players online right now">
+  <span class="dot"></span>{% if b.connect.players %}{{ b.connect.players.online }} / {{ b.connect.players.max }} playing{% endif %}
+</span>
+{% endif %}

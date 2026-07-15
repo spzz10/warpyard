@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% set nav = 'servers' %}
+{% block title %}Resize {{ b.label }} — Warpyard{% endblock %}
+{% block content %}
+<div class="panel">
+  <a href="/servers/{{ b.id }}" style="font-family:var(--mono); font-size:.78rem; color:var(--muted)">← {{ b.label }}</a>
+  <h1 style="margin:.6rem 0 .3rem; font-size:1.5rem; font-weight:640">Resize {{ b.label }}</h1>
+  <p style="color:var(--muted); margin:0 0 1rem">
+    Pick a bigger size. The server reboots to apply it (about a minute of downtime), and the
+    disk grows automatically. Disk can only grow — you can't shrink it later.
+  </p>
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+  <div style="border:1px solid var(--line); border-radius:12px; padding:.85rem 1rem; background:var(--surface-2); margin-bottom:1rem">
+    <div class="acc-h" style="font:600 .58rem/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--dim); margin-bottom:.4rem">Current</div>
+    <div class="mono" style="font-size:.9rem">{{ current.name }} — {{ current.vcpus }} vCPU · {{ current.memory_mb // 1024 }}GB RAM · {{ current.disk_gb }}GB disk</div>
+  </div>
+
+  {% if options %}
+  <form method="post" action="/servers/{{ b.id }}/resize">
+    <div class="opts">
+      {% for p in options %}
+      <label class="opt">
+        <input type="radio" name="plan" value="{{ p.slug }}" {{ 'checked' if loop.first }}>
+        <div class="nm">{{ p.name }}</div>
+        <div class="meta">{{ p.vcpus }} vCPU · {{ p.memory_mb // 1024 }}GB · {{ p.disk_gb }}GB</div>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Resize &amp; reboot</button>
+      <a class="btn ghost" href="/servers/{{ b.id }}">Cancel</a>
+    </div>
+  </form>
+  {% else %}
+  <p style="color:var(--muted)">This is already the largest size available.</p>
+  <div class="btn-row"><a class="btn ghost" href="/servers/{{ b.id }}">Back</a></div>
+  {% endif %}
+</div>
+{% endblock %}

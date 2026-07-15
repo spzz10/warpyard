@@ -1,0 +1,133 @@
+# Warpyard edge — deployed at /etc/caddy/Caddyfile on the edge VPS.
+#
+# :443 is an SNI passthrough (caddy-l4 `layer4`): a tenant whose VM terminates its own TLS
+# (Instance.tls_passthrough) gets its encrypted stream forwarded straight to VM:443 — the edge
+# NEVER decrypts it. Everything else (the marketing/app/mcp hosts, legacy edge-terminated
+# tenants, custom domains) is handed to the local terminator on 127.0.0.1:8443, which behaves
+# exactly as before. The agent writes one layer4 snippet per passthrough host into layer4.d/.
+#
+# grace_period bounds Caddy's shutdown so reloads/restarts can't hang draining connections.
+# https_port moves the terminator off the public :443 (now owned by layer4); auto_https
+# disable_redirects stops Caddy emitting :8443-targeted redirects — the :80 block below does
+# the http->https redirect (and Caddy still serves ACME HTTP-01 challenges on :80 itself).
+{
+	https_port 8443
+	grace_period 5s
+	auto_https disable_redirects
+	on_demand_tls {
+		ask http://127.0.0.1:9280/authorize
+	}
+	layer4 {
+		:443 {
+			import /etc/caddy/layer4.d/*.l4
+			route {
+				proxy 127.0.0.1:8443
+			}
+		}
+	}
+}
+
+# shared hardening: compress responses + HSTS (our own hosts only, not custom domains)
+(hardened) {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+# :80 — Caddy serves ACME HTTP-01 challenges here automatically; everything else redirects to
+# https (which the edge's layer4 listener then routes).
+:80 {
+	redir https://{host}{uri} permanent
+}
+
+# marketing landing page
+example.com {
+	tls {
+		on_demand
+	}
+	import hardened
+	root * /etc/caddy/site
+	redir /favicon.ico /favicon.svg 308
+	file_server
+	handle_errors {
+		rewrite * /404.html
+		file_server
+	}
+}
+
+# common typed entry point — send www to the apex
+www.example.com {
+	tls {
+		on_demand
+	}
+	import hardened
+	redir https://example.com{uri} permanent
+}
+
+# the dashboard / control panel (internal APIs blocked)
+app.example.com {
+	tls {
+		on_demand
+	}
+	import hardened
+	@internal path /instances* /edge*
+	respond @internal "Not found" 404
+	@static path /static/*
+	header @static Cache-Control "public, max-age=86400"
+	reverse_proxy <control-plane-ip>:8000
+}
+
+# MCP server for AI clients (OAuth-protected). Only the MCP endpoint and its OAuth metadata
+# live on this host — everything else (incl. the login page) belongs on app.example.com,
+# so users can't end up with a session cookie on the wrong origin.
+mcp.example.com {
+	tls {
+		on_demand
+	}
+	import hardened
+	@mcp path /mcp* /.well-known/*
+	handle @mcp {
+		reverse_proxy <control-plane-ip>:8000
+	}
+	handle {
+		redir https://app.example.com{uri} permanent
+	}
+}
+
+# tenant services (edge-terminated, legacy): <name>.example.com — proxy to the VM's :80, or
+# show the welcome splash. Passthrough tenants never reach here — layer4 forwards their :443
+# to the VM before it reaches this terminator.
+*.example.com {
+	tls {
+		on_demand
+	}
+	import hardened
+	import /etc/caddy/routes.d/*.caddy
+	handle {
+		respond "Warpyard: no service bound to this hostname" 404
+	}
+	handle_errors {
+		root * /etc/caddy/welcome
+		rewrite * /index.html
+		file_server
+	}
+}
+
+# custom (bring-your-own) domains: any host with an active route in routes.d. Named blocks
+# above are more specific and still win for example.com hosts; on-demand TLS is gated by the
+# authorizer, which only approves hosts that have a rendered snippet. No HSTS here — that's
+# a policy decision for the domain owner, not us. (:8443 — layer4 fronts the public :443.)
+:8443 {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	import /etc/caddy/routes.d/*.caddy
+	handle {
+		respond "Warpyard: no service bound to this hostname" 404
+	}
+	handle_errors {
+		root * /etc/caddy/welcome
+		rewrite * /index.html
+		file_server
+	}
+}

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Wrapper so systemd Exec* uses a fixed path; the LGSM game code comes from the env file.
+. /etc/warpyard-game.env
+exec /home/gameserver/"$GAME" "$@"

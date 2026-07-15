@@ -1,0 +1,22 @@
+<details class="bc"{% if c.open %} open{% endif %}>
+  <summary>{{ c["items"]|length }} comment{{ '' if c["items"]|length == 1 else 's' }}</summary>
+  <div class="bc-body">
+    {% for cm in c["items"] %}
+    <div class="bc-row">
+      <span class="bc-author">{{ cm.author }}</span>
+      <span class="bc-text">{{ cm.body }}</span>
+      <span class="bc-when">{{ cm.when }}</span>
+      {% if cm.can_delete %}
+      <button class="bc-del" title="Delete comment"
+        hx-post="/board/{{ c.iid }}/comments/{{ cm.id }}/delete"
+        hx-target="closest details" hx-swap="outerHTML">×</button>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <form class="bc-form" hx-post="/board/{{ c.iid }}/comments"
+      hx-target="closest details" hx-swap="outerHTML">
+      <input name="body" maxlength="500" placeholder="Say something…" autocomplete="off" required>
+      <button class="btn" type="submit">Post</button>
+    </form>
+  </div>
+</details>

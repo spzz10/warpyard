@@ -1,0 +1,19 @@
+# code-server — VS Code in the browser. Password is generated per server and written
+# to /root/CREDENTIALS.txt. Your code lives in the named volume (or bind-mount /srv).
+services:
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    restart: unless-stopped
+    ports:
+      - "80:8443"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: UTC
+      PASSWORD: ${WY_SECRET}
+      PROXY_DOMAIN: ${WY_HOST}
+    volumes:
+      - config:/config
+
+volumes:
+  config:

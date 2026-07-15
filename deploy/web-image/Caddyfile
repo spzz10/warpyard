@@ -1,0 +1,8 @@
+# Warpyard web-2404 image: serve the pushed site on :80 (the edge terminates TLS and
+# reverse-proxies here). /var/www/site is a symlink the deploy hook flips atomically.
+:80 {
+	root * /var/www/site
+	encode gzip
+	try_files {path} {path}/ /index.html
+	file_server
+}

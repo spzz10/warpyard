@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set nav = 'servers' %}
+{% block title %}Servers — Warpyard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Servers</h1>
+    <div class="sub">Each server you create gets a public address at <span class="mono">{{ base_domain }}</span>.</div>
+  </div>
+  <div class="tally" id="tally">{% include "_tally.html" %}</div>
+</div>
+
+<div class="toolbar">
+  <div class="spacer"></div>
+  <a class="btn primary" href="/new">Create server</a>
+</div>
+
+<!-- live-updating list: morph-swap keeps unchanged rows steady (no flicker) -->
+<div id="server-list" hx-ext="morph" hx-get="/servers/cards" hx-trigger="every 3s [document.visibilityState=='visible']"
+     hx-swap="morph:innerHTML" hx-target="this">
+  {% include "_cards.html" %}
+</div>
+{% endblock %}

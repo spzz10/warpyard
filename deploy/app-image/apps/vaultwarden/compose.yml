@@ -1,0 +1,17 @@
+# Vaultwarden — Bitwarden-compatible vault. Signups are open so the owner can create
+# their account on first visit; the generated admin-panel token is in CREDENTIALS.txt.
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.33.2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      DOMAIN: https://${WY_HOST}
+      ADMIN_TOKEN: ${WY_SECRET}
+      SIGNUPS_ALLOWED: "true"
+    volumes:
+      - vaultwarden:/data
+
+volumes:
+  vaultwarden:

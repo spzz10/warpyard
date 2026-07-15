@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ label }} — console — Warpyard</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<style>
+  :root{--water:#0b1524;--hull:#15243b;--ink:#e9eef6;--fog:#8296b3;--line:#25384f;--warp:#38d6c4;--bad:#ff6b6b}
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--water);color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+  header{display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;border-bottom:1px solid var(--line);background:var(--hull)}
+  header .t{font-weight:600} header .m{font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--fog)}
+  header .status{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--fog)}
+  header .status.on{color:var(--warp)} header .status.off{color:var(--bad)}
+  #screen{flex:1;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .hint{color:var(--fog);font-family:"IBM Plex Mono",monospace;font-size:.82rem}
+  a.back{color:var(--warp);text-decoration:none;font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <span class="t">{{ label }}</span>
+  <span class="m">console</span>
+  <a class="back" href="/servers/{{ instance_id }}">← back to server</a>
+  <span class="status" id="st">connecting…</span>
+</header>
+<div id="screen"><span class="hint" id="hint">Opening a console…</span></div>
+
+<script type="module">
+  const st = document.getElementById('st'), hint = document.getElementById('hint');
+  const fail = (msg) => { st.textContent = 'failed'; st.className = 'status off'; if (hint) hint.textContent = msg; };
+  // surface any load/runtime error instead of hanging on "Opening a console…"
+  window.addEventListener('error', (e) => fail('Console error: ' + (e.message || 'failed to load')));
+
+  let RFB;
+  try {
+    ({ default: RFB } = await import("/static/novnc/core/rfb.js"));
+  } catch (err) {
+    fail('Could not load the console viewer: ' + err.message);
+    throw err;
+  }
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = `${proto}://${location.host}/servers/{{ instance_id }}/console/ws?t={{ token }}`;
+  const vncPassword = {{ vnc_password | tojson }};
+  try {
+    const rfb = new RFB(document.getElementById('screen'), url, {
+      wsProtocols: ['binary'],
+      credentials: { password: vncPassword },
+    });
+    rfb.scaleViewport = true;
+    // Proxmox asks for VNC auth — hand it the ticket if noVNC requests credentials
+    rfb.addEventListener('credentialsrequired', () => rfb.sendCredentials({ password: vncPassword }));
+    rfb.addEventListener('connect', () => {
+      st.textContent = 'connected'; st.className = 'status on'; if (hint) hint.remove();
+      // nudge the serial console so the (already auto-logged-in) shell prompt redraws,
+      // instead of the user having to press Enter to see it.
+      setTimeout(() => { rfb.focus(); rfb.sendKey(0xff0d, 'Enter'); }, 350);
+    });
+    rfb.addEventListener('disconnect', (e) => {
+      st.textContent = e.detail.clean ? 'disconnected' : 'connection lost';
+      st.className = 'status off';
+      const screen = document.getElementById('screen');
+      if (!document.getElementById('hint')) {
+        const h = document.createElement('span'); h.className = 'hint'; h.id = 'hint';
+        h.textContent = 'Console closed. Reload to reconnect.'; screen.appendChild(h);
+      }
+    });
+  } catch (err) {
+    fail('Could not start the console: ' + err.message);
+  }
+</script>
+</body>
+</html>

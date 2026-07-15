@@ -1,0 +1,26 @@
+<div class="srv" id="server-{{ b.id }}">
+  <div class="srv-idy">
+    <a class="srv-name" href="/servers/{{ b.id }}">{{ b.label }}</a>
+    <a class="srv-host" href="{% if b.running %}https://{{ b.hostname }}{% else %}/servers/{{ b.id }}{% endif %}" {% if b.running %}target="_blank" rel="noopener"{% endif %}>{{ b.hostname }}</a>
+  </div>
+  <div class="srv-specs">{{ b.plan }} · {{ b.image }}</div>
+  {% if b.connect and b.connect.players %}
+  <span class="chip {{ 'go' if b.connect.players.online else 'idle' }}" style="flex:none" title="Players online right now">
+    <span class="dot"></span>{{ b.connect.players.online }}/{{ b.connect.players.max }}</span>
+  {% endif %}
+  <span class="srv-status chip {{ b.tone }}"><span class="dot"></span>{{ b.status_label }}</span>
+  <div class="srv-acts">
+    {% if b.running %}
+    <a class="btn go" href="/servers/{{ b.id }}/console" target="_blank" rel="noopener">Console</a>
+    <button class="btn" hx-post="/servers/{{ b.id }}/reboot" hx-target="#server-{{ b.id }}" hx-swap="outerHTML">Reboot</button>
+    <button class="btn" hx-post="/servers/{{ b.id }}/stop" hx-target="#server-{{ b.id }}" hx-swap="outerHTML">Power off</button>
+    {% elif b.status == 'stopped' %}
+    <button class="btn go" hx-post="/servers/{{ b.id }}/start" hx-target="#server-{{ b.id }}" hx-swap="outerHTML">Boot</button>
+    {% elif b.busy %}
+    <button class="btn" disabled>Working…</button>
+    {% endif %}
+    <button class="btn danger"
+      hx-post="/servers/{{ b.id }}/destroy" hx-target="#server-{{ b.id }}" hx-swap="outerHTML"
+      hx-confirm="Delete {{ b.label }}? The server and its disk are erased for good.">Delete</button>
+  </div>
+</div>

@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% set nav = 'servers' %}
+{% block title %}{{ b.label }} — Warpyard{% endblock %}
+{% block content %}
+<div style="max-width:760px; margin:0 auto">
+  <a href="/" class="mono" style="font-size:.78rem; color:var(--muted)">← Servers</a>
+  <div class="pagehead" style="margin-top:.7rem">
+    <div>
+      <div style="display:flex; align-items:center; gap:.7rem; flex-wrap:wrap">
+        <h1 style="margin:0">{{ b.label }}</h1>
+        <span id="status-chip" class="chip {{ b.tone }}"><span class="dot"></span>{{ b.status_label }}</span>
+        {% with oob = false %}{% include "_players_chip.html" %}{% endwith %}
+      </div>
+      <div class="sub mono" style="font-size:.85rem">Server #{{ b.id }} · {{ b.plan }} · {{ b.image }}</div>
+    </div>
+  </div>
+
+  <!-- power controls (live-updating via poll) -->
+  {% with full_page = true %}{% include "_server_controls.html" %}{% endwith %}
+
+  <!-- the one thing you came for: the server's address -->
+  <div class="hero">
+    <div class="hero-k">{{ 'Connect address' if b.connect else 'Public address' }}</div>
+    {% if b.connect %}
+    <code class="copy hero-v" data-copy="{{ b.connect.endpoints[0].endpoint }}" title="Click to copy">{{ b.connect.endpoints[0].endpoint }}</code>
+    {% if b.connect.install_secs_left and b.connect.install_secs_left > 0 %}
+    <p class="note install-note" data-secs="{{ b.connect.install_secs_left }}"
+       style="color:var(--amber); display:flex; align-items:center; gap:.4rem; margin:.6rem 0 0">
+      <span class="dot" style="background:var(--amber); flex:none"></span>
+      <span>Installing the game — ready in about <span class="install-min">{{ (b.connect.install_secs_left // 60) + 1 }}</span> min.</span>
+    </p>
+    {% elif not b.running %}
+    <p class="note" style="margin:.6rem 0 0">The server is {{ b.status_label|lower }} — the address works once it's running.</p>
+    {% else %}
+    <p class="note" style="margin:.6rem 0 0">Paste this into the game — details under <b style="color:var(--muted)">Access</b>.</p>
+    {% endif %}
+    {% elif access.web_url %}
+    <a class="hero-v" href="{{ access.web_url }}" target="_blank" rel="noopener">{{ b.hostname }} ↗</a>
+    {% if b.app_install_secs and b.app_install_secs > 0 %}
+    <p class="note install-note" data-secs="{{ b.app_install_secs }}"
+       style="color:var(--amber); display:flex; align-items:center; gap:.4rem; margin:.6rem 0 0">
+      <span class="dot" style="background:var(--amber); flex:none"></span>
+      <span>Setting up the app — ready in about <span class="install-min">{{ (b.app_install_secs // 60) + 1 }}</span> min. The address shows a welcome page until then.</span>
+    </p>
+    {% else %}
+    <p class="note" style="margin:.6rem 0 0">Serves whatever your server runs on port 80 — HTTPS is automatic.</p>
+    {% endif %}
+    {% else %}
+    <span class="hero-v" style="color:var(--dim)">{{ b.hostname }}</span>
+    <p class="note" style="margin:.6rem 0 0">Live once the server is running.</p>
+    {% endif %}
+  </div>
+
+  <!-- everything else, one topic at a time -->
+  <nav class="tabs" role="tablist" aria-label="Server sections">
+    <button role="tab" id="tab-access" data-tab="access" aria-selected="true" aria-controls="pane-access">Access</button>
+    <button role="tab" id="tab-metrics" data-tab="metrics" aria-selected="false" aria-controls="pane-metrics">Metrics</button>
+    <button role="tab" id="tab-monitoring" data-tab="monitoring" aria-selected="false" aria-controls="pane-monitoring">Monitoring{% if b.monitor_id %} <span class="ct" style="background:var(--green-soft); color:var(--green)">on</span>{% endif %}</button>
+    <button role="tab" id="tab-domains" data-tab="domains" aria-selected="false" aria-controls="pane-domains">Domains{% if b.domains %} <span class="ct">{{ b.domains|length }}</span>{% endif %}</button>
+    {% if not b.connect %}
+    <button role="tab" id="tab-addons" data-tab="addons" aria-selected="false" aria-controls="pane-addons">Add&#8209;ons</button>
+    {% endif %}
+    <button role="tab" id="tab-snapshots" data-tab="snapshots" aria-selected="false" aria-controls="pane-snapshots">Snapshots{% if snapshots %} <span class="ct">{{ snapshots|length }}</span>{% endif %}</button>
+    <button role="tab" id="tab-backups" data-tab="backups" aria-selected="false" aria-controls="pane-backups">Backups{% if backups %} <span class="ct">{{ backups|length }}</span>{% endif %}</button>
+    <button role="tab" id="tab-activity" data-tab="activity" aria-selected="false" aria-controls="pane-activity">Activity</button>
+  </nav>
+
+  <!-- ── Access ── -->
+  <section class="pane" id="pane-access" role="tabpanel" aria-labelledby="tab-access">
+    <div class="deflist">
+      {% if b.connect %}
+      <div class="def">
+        <div class="dt">{{ 'Play' if b.connect.game else 'Connect' }}</div>
+        <div class="dd">
+          {% for e in b.connect.endpoints %}
+          <div style="margin-bottom:.35rem">
+            <code class="copy" data-copy="{{ e.endpoint }}" title="Click to copy">{{ e.endpoint }}</code>
+            <span class="note" style="display:inline; margin-left:.4rem">{{ e.proto|upper }}{% if b.connect.endpoints|length > 1 %} · port {{ e.internal_port }}{% endif %}</span>
+          </div>
+          {% endfor %}
+          {% if b.connect.guidance %}<p class="note" style="white-space:pre-line">{{ b.connect.guidance }}</p>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="def">
+        <div class="dt">SSH</div>
+        <div class="dd">
+          {% if access.ssh_cmd %}
+          <code class="copy" data-copy="{{ access.ssh_cmd }}" title="Click to copy">{{ access.ssh_cmd }}</code>
+          <p class="note">
+            {% if access.key_names %}Signed in with your key{{ 's' if access.key_names|length > 1 }}: {{ access.key_names|join(', ') }}.
+            {% else %}<a href="/account">Add an SSH key</a> first — access is key-based.{% endif %}
+          </p>
+          {% else %}<div class="val mono" style="color:var(--dim)">available once running</div>{% endif %}
+        </div>
+      </div>
+      <div class="def">
+        <div class="dt">Console</div>
+        <div class="dd">
+          {% if b.running %}
+          <div class="val"><a href="/servers/{{ b.id }}/console" target="_blank" rel="noopener">Open console ↗</a></div>
+          <p class="note">A root shell in your browser — works even if SSH or the network is down.</p>
+          {% elif b.status == 'booting' %}
+          <div class="val mono" style="color:var(--dim)">available once it finishes booting…</div>
+          {% else %}<div class="val mono" style="color:var(--dim)">start the server to open a console</div>{% endif %}
+        </div>
+      </div>
+      {% if b.connect %}
+      <div class="def">
+        <div class="dt">Web</div>
+        <div class="dd">
+          {% if access.web_url %}
+          <div class="val"><a href="{{ access.web_url }}" target="_blank" rel="noopener" class="mono">{{ access.web_url }} ↗</a></div>
+          <p class="note">Anything the server runs on port 80 shows up here.</p>
+          {% else %}<div class="val mono" style="color:var(--dim)">—</div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if b.deploy %}
+      <div class="def">
+        <div class="dt">Deploy</div>
+        <div class="dd">
+          <p class="note" style="margin:0 0 .5rem">
+            <b style="color:var(--text)">Git-based deploy</b> — every <span class="mono">git push</span> to
+            <span class="mono">main</span> builds your repo and swaps it live at
+            {% if b.running %}<a href="https://{{ b.hostname }}" target="_blank" rel="noopener">{{ b.hostname }}</a>{% else %}<span class="mono">{{ b.hostname }}</span>{% endif %}.
+          </p>
+          <code class="copy" data-copy="{{ b.deploy.commands[0] }}
+{{ b.deploy.commands[1] }}" title="Click to copy" style="display:block; width:100%; white-space:pre-wrap">git remote add warpyard {{ b.deploy.git_remote }}
+git push warpyard main</code>
+          <p class="note">
+            With a <span class="mono">package.json</span> it runs <span class="mono">npm ci &amp;&amp; npm run build</span> and
+            publishes <span class="mono">dist/</span> (or build/out/public); otherwise your files are served as-is.
+            Authenticates with your SSH key.
+          </p>
+        </div>
+      </div>
+      {% endif %}
+      {% if b.image_guidance and not b.connect and not b.deploy %}
+      <div class="def">
+        <div class="dt">How to use</div>
+        <div class="dd"><p class="note" style="margin:0; white-space:pre-line">{{ b.image_guidance }}</p></div>
+      </div>
+      {% endif %}
+      {% if user.private_network %}
+      <div class="def">
+        <div class="dt">Private IP</div>
+        <div class="dd">
+          <div class="val mono">{{ b.ipv4 }}</div>
+          <p class="note">Reachable from your other servers only — never from the internet.</p>
+        </div>
+      </div>
+      {% endif %}
+      {# game-only by design (2026-07-13) — but an ACTIVE schedule always shows, so a
+         server can never be invisibly auto-rebooting (portrait/resident, 2026-07-14) #}
+      {% if b.connect or b.restart_enabled %}
+      <div class="def">
+        <div class="dt">Nightly restart</div>
+        <div class="dd">
+          <form method="post" action="/servers/{{ b.id }}/restart-schedule" id="restart-form"
+                style="display:flex; align-items:center; gap:.7rem; flex-wrap:wrap">
+            <label class="switch" title="Restart this server once a day">
+              <input type="checkbox" name="enabled" {{ 'checked' if b.restart_enabled }} onchange="this.form.submit()">
+              <i></i><span class="sr-only">Nightly restart</span>
+            </label>
+            <input type="time" name="at" value="{{ b.restart_at or '09:00' }}" aria-label="Restart time (UTC)"
+                   onchange="this.form.submit()">
+            <span class="note" style="margin:0" id="restart-local"></span>
+          </form>
+          {% if b.connect %}
+          <p class="note">A daily restart keeps game servers healthy. It's player-aware — if anyone's online at that
+            time, it quietly waits until the server is empty. Times are UTC.</p>
+          {% else %}
+          <p class="note">Reboots this server once a day at the chosen time. Times are UTC.
+            Turning this off hides the control (it's enabled via the API or MCP).</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="def">
+        <div class="dt">Share board</div>
+        <div class="dd">
+          <form method="post" action="/servers/{{ b.id }}/share" style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap">
+            {% if b.shared %}
+            <span style="font-size:.9rem">Listed on the <a href="/board">board</a>{% if b.shared_note %} — &ldquo;{{ b.shared_note }}&rdquo;{% endif %}.</span>
+            <button class="btn" type="submit">Remove from board</button>
+            {% else %}
+            <input type="hidden" name="enabled" value="on">
+            <input type="text" name="note" maxlength="140" placeholder="What is it? (optional)" aria-label="Short note for the board" style="flex:1; min-width:12rem">
+            <button class="btn" type="submit">Share</button>
+            {% endif %}
+          </form>
+          <p class="note">Puts the name and address on the members-only <a href="/board">board</a> so everyone can see what you're working on. Listed only while the server is running.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Metrics ── -->
+  <section class="pane" id="pane-metrics" role="tabpanel" aria-labelledby="tab-metrics" hidden>
+    <div id="metrics" data-url="/servers/{{ b.id }}/metrics.json">
+      <div class="tfrow" role="group" aria-label="Time range">
+        <button type="button" class="btn tf" data-tf="hour" aria-pressed="true">Hour</button>
+        <button type="button" class="btn tf" data-tf="day" aria-pressed="false">Day</button>
+        <button type="button" class="btn tf" data-tf="week" aria-pressed="false">Week</button>
+      </div>
+      <div class="mx-grid">
+        <div data-chart="cpu"></div>
+        <div data-chart="mem"></div>
+        <div data-chart="net" class="mx-wide"></div>
+      </div>
+      <p class="note" style="margin:.8rem 0 0">Measured at the host, averaged per point. Updates every 30 seconds.</p>
+    </div>
+  </section>
+
+  <!-- ── Monitoring & alerting ── -->
+  <section class="pane" id="pane-monitoring" role="tabpanel" aria-labelledby="tab-monitoring" hidden>
+    {% if merr %}<div class="err">{{ merr }}</div>{% endif %}
+    {% if b.monitor_id %}
+    <div style="display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin-bottom:.8rem">
+      <span class="chip go"><span class="dot"></span>Monitored by PoppaPing</span>
+      <a class="btn" href="{{ settings.POPPAPING_BASE_URL }}/dashboard" target="_blank" rel="noopener">Open PoppaPing ↗</a>
+      <form method="post" action="/servers/{{ b.id }}/monitor/delete" style="display:inline">
+        <button class="btn" type="submit">Stop monitoring</button>
+      </form>
+    </div>
+    <p class="note" style="margin:0 0 1.1rem">PoppaPing checks this server from the outside
+      ({{ 'a real game-server query' if b.connect else 'the site itself, over HTTPS' }}) and emails
+      <b style="color:var(--muted)">{{ user.email }}</b> the moment it stops answering.</p>
+
+    <div id="monitor" data-url="/servers/{{ b.id }}/monitor/data.json">
+      <div class="tfrow" role="group" aria-label="Time range">
+        <button type="button" class="btn tf" data-tf="24h" aria-pressed="true">24h</button>
+        <button type="button" class="btn tf" data-tf="7d" aria-pressed="false">7 days</button>
+        <button type="button" class="btn tf" data-tf="30d" aria-pressed="false">30 days</button>
+      </div>
+      <div class="mx-grid">
+        <div class="mx-card" style="display:flex; flex-direction:column; justify-content:center">
+          <div class="mx-title">Uptime</div>
+          <div class="mx-now" data-stat="uptime" style="font-size:2rem; margin:.2rem 0">—</div>
+          <div class="note" data-stat="avg" style="margin:0"></div>
+        </div>
+        <div data-chart="rt" class="mx-wide" style="grid-column:auto"></div>
+      </div>
+      <p class="note" style="margin:.8rem 0 0">Checked from PoppaPing's network every few minutes. Full history,
+        more alert channels and status pages live on the <a href="{{ settings.POPPAPING_BASE_URL }}/dashboard" target="_blank" rel="noopener">PoppaPing dashboard</a>.</p>
+    </div>
+    {% elif user.poppaping_api_key %}
+    <p class="note" style="margin:0 0 .9rem">Your PoppaPing account is connected. One click sets up an
+      outside-in uptime check ({{ 'a real game-server query' if b.connect else 'on the site itself' }})
+      with email alerts when it goes down.</p>
+    <form method="post" action="/servers/{{ b.id }}/monitor">
+      <button class="btn primary" type="submit">Monitor with PoppaPing</button>
+    </form>
+    {% else %}
+    <p class="note" style="margin:0 0 .9rem">Get an email the moment this server stops answering —
+      powered by <a href="{{ settings.POPPAPING_BASE_URL }}" target="_blank" rel="noopener">PoppaPing</a>, watching
+      from outside Warpyard's own network.</p>
+    {% if partner_on %}
+    <form method="post" action="/servers/{{ b.id }}/monitor/enable">
+      <button class="btn primary" type="submit">Enable monitoring</button>
+    </form>
+    <p class="note">Creates a free PoppaPing account for {{ user.email }}, connects it, and starts
+      watching this server — one click, nothing to sign up for. Already use PoppaPing? Connect your
+      API key on the <a href="/account#monitoring">Account page</a> instead.</p>
+    {% else %}
+    <p class="note" style="margin:0">Connect your PoppaPing API key on the
+      <a href="/account#monitoring">Account page</a> to enable one-click monitoring here.</p>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <!-- ── Custom domains ── -->
+  <section class="pane" id="pane-domains" role="tabpanel" aria-labelledby="tab-domains" hidden>
+    <p class="note" style="margin:0 0 .9rem">
+      Point your own domain at this server, alongside <span class="mono">{{ b.hostname }}</span>. HTTPS is automatic.
+    </p>
+    {% if derr %}<div class="err">{{ derr }}</div>{% endif %}
+    {% if b.domains %}
+    <table class="keys">
+      {% for d in b.domains %}
+      <tr>
+        <td>
+          {% if d.status == 'active' %}<a href="{{ d.url }}" target="_blank" rel="noopener" class="mono">{{ d.hostname }}</a>
+          {% else %}<span class="mono">{{ d.hostname }}</span>{% endif %}
+          {% if d.status == 'pending' %}
+          <div class="note" style="margin-top:.4rem">
+            Add this DNS record, then it goes live automatically:
+            <code class="mono" style="display:inline-block; margin-top:.25rem; color:var(--accent-2)">{{ d.dns_record.type }} {{ d.dns_record.name }} → {{ d.dns_record.value }}</code>
+          </div>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap">
+          {% if d.status == 'active' %}<span class="light go"><span class="dot go"></span>Active</span>
+          {% else %}<span class="light" style="color:var(--amber)"><span class="dot" style="background:var(--amber)"></span>Pending DNS</span>{% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap">
+          <form method="post" action="/servers/{{ b.id }}/domains/delete" style="display:inline"
+                onsubmit="return confirm('Remove {{ d.hostname }}?')">
+            <input type="hidden" name="hostname" value="{{ d.hostname }}">
+            <button class="btn danger ghost" type="submit" style="padding:.4rem .7rem">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:var(--muted); font-size:.9rem">No custom domains yet.</p>
+    {% endif %}
+    <form method="post" action="/servers/{{ b.id }}/domains" style="display:flex; gap:.6rem; margin-top:.9rem; align-items:flex-end">
+      <div style="flex:1"><label class="fld" style="margin-top:0" for="domain">Add a domain</label>
+        <input id="domain" name="hostname" placeholder="app.example.com" class="mono"></div>
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+  </section>
+
+  <!-- ── Add-ons (plain OS servers; game servers have their own Play card) ── -->
+  {% if not b.connect %}
+  <section class="pane" id="pane-addons" role="tabpanel" aria-labelledby="tab-addons" hidden>
+    <p class="note" style="margin:0 0 .9rem">One-command setups. Run every command below from <b>your own computer</b> — it reaches the server over SSH for you. Safe to re-run (e.g. after a rebuild).</p>
+    <div class="deflist">
+      <div class="def">
+        <div class="dt">Docker</div>
+        <div class="dd">
+          {% if b.addon_setup.docker %}
+          <code class="copy" data-copy="{{ b.addon_setup.docker }}" title="Click to copy" style="display:block; width:100%">{{ b.addon_setup.docker }}</code>
+          {% else %}
+          <p class="note" style="margin-top:0">The setup command appears here once the server finishes provisioning.</p>
+          {% endif %}
+          <p class="note">Installs Docker + Compose. Any container listening on port 80 is served at <span class="mono">https://{{ b.hostname }}</span>.</p>
+        </div>
+      </div>
+      <div class="def">
+        <div class="dt">Push&#8209;to&#8209;deploy</div>
+        <div class="dd">
+          <p class="note" style="margin-top:0">Netlify-style deploys: <span class="mono">git push</span> → build → live at <span class="mono">https://{{ b.hostname }}</span>.</p>
+          {% if b.addon_setup.pushdeploy %}
+          <p class="note"><b>1.</b>&nbsp; Set up the server (one time):</p>
+          <code class="copy" data-copy="{{ b.addon_setup.pushdeploy }}" title="Click to copy" style="display:block; width:100%">{{ b.addon_setup.pushdeploy }}</code>
+          <p class="note"><b>2.</b>&nbsp; In your project folder (one time):</p>
+          <code class="copy" data-copy="git remote add warpyard {{ b.pushdeploy_remote }}" title="Click to copy" style="display:block; width:100%">git remote add warpyard {{ b.pushdeploy_remote }}</code>
+          <p class="note"><b>3.</b>&nbsp; Deploy — this is the whole workflow from now on:</p>
+          <code class="copy" data-copy="git push warpyard main" title="Click to copy" style="display:block; width:100%">git push warpyard main</code>
+          <p class="note">Plain files are served as-is. If your repo has a <span class="mono">package.json</span> it runs
+            <span class="mono">npm ci &amp;&amp; npm run build</span> and serves the build output
+            (<span class="mono">dist</span>/<span class="mono">build</span>/<span class="mono">out</span>/<span class="mono">public</span>).</p>
+          {% else %}
+          <p class="note">The setup commands appear here once the server finishes provisioning.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Snapshots ── -->
+  <section class="pane" id="pane-snapshots" role="tabpanel" aria-labelledby="tab-snapshots" hidden>
+    <p class="note" style="margin:0 0 .9rem">Instant point-in-time saves on the same host — great before a risky change. Roll back anytime.</p>
+    {% if snapshots %}
+    <table class="keys">
+      {% for snap in snapshots %}
+      <tr>
+        <td class="mono" style="font-size:.85rem">{{ snap.name }}</td>
+        <td style="text-align:right; white-space:nowrap">
+          <form method="post" action="/servers/{{ b.id }}/snapshot/{{ snap.name }}/rollback" style="display:inline"
+                onsubmit="return confirm('Roll {{ b.label }} back to {{ snap.name }}? Changes since then are lost, and the server reboots.')">
+            <button class="btn" type="submit" style="padding:.4rem .7rem">Roll back</button>
+          </form>
+          <form method="post" action="/servers/{{ b.id }}/snapshot/{{ snap.name }}/delete" style="display:inline"
+                onsubmit="return confirm('Delete snapshot {{ snap.name }}?')">
+            <button class="btn danger ghost" type="submit" style="padding:.4rem .7rem">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:var(--muted); font-size:.9rem">No snapshots yet.</p>
+    {% endif %}
+    <form method="post" action="/servers/{{ b.id }}/snapshot" style="display:flex; gap:.6rem; margin-top:.9rem; align-items:flex-end">
+      <div style="flex:1"><label class="fld" style="margin-top:0" for="snapname">New snapshot name</label>
+        <input id="snapname" name="name" placeholder="before-upgrade" class="mono"></div>
+      <button class="btn primary" type="submit">Take snapshot</button>
+    </form>
+  </section>
+
+  <!-- ── Backups ── -->
+  <section class="pane" id="pane-backups" role="tabpanel" aria-labelledby="tab-backups" hidden>
+    <p class="note" style="margin:0 0 .9rem">Nightly off-host backups (kept 7 daily + 4 weekly), stored away from the server's own disk — unlike snapshots, they survive losing the host. Free during beta.</p>
+    {% if derr %}<p class="note" style="color:var(--danger); margin:0 0 .9rem">{{ derr }}</p>{% endif %}
+    <form method="post" action="/servers/{{ b.id }}/backups/toggle" style="display:flex; gap:.6rem; align-items:center; margin-bottom:.9rem">
+      {% if b.backups_enabled %}
+      <span style="font-size:.9rem">Backups are <strong>on</strong>{% if b.last_backup_at %} — last backup {{ b.last_backup_at.strftime('%b %-d, %H:%M UTC') }}{% else %} — first one runs tonight{% endif %}.</span>
+      <button class="btn ghost" type="submit" style="padding:.4rem .7rem">Turn off</button>
+      {% else %}
+      <span style="font-size:.9rem; color:var(--muted)">Backups are <strong>off</strong> for this server.</span>
+      <button class="btn primary" type="submit" style="padding:.4rem .7rem">Turn on</button>
+      {% endif %}
+    </form>
+    {% if b.backups_enabled %}
+    {% if backups_err %}<p style="color:var(--muted); font-size:.9rem">{{ backups_err }}</p>{% endif %}
+    {% if backups %}
+    <table class="keys">
+      {% for bk in backups %}
+      <tr>
+        <td class="mono" style="font-size:.85rem">{{ bk.created_at[:16].replace('T',' ') if bk.created_at else '—' }} UTC</td>
+        <td style="font-size:.85rem; color:var(--muted)">{{ bk.size_gb }} GB{% if bk.verified == 'ok' %} · verified{% endif %}</td>
+        <td style="text-align:right; white-space:nowrap">
+          <form method="post" action="/servers/{{ b.id }}/backups/restore" style="display:inline"
+                onsubmit="return confirm('Restore {{ b.label }} from this backup? The server\'s CURRENT disk is replaced with the backup and it reboots. Changes since then are lost.')">
+            <input type="hidden" name="volid" value="{{ bk.id }}">
+            <button class="btn" type="submit" style="padding:.4rem .7rem">Restore</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% elif not backups_err %}
+    <p style="color:var(--muted); font-size:.9rem">No backups yet — the first nightly one lands within 24h, or take one now.</p>
+    {% endif %}
+    <form method="post" action="/servers/{{ b.id }}/backups/now" style="margin-top:.9rem">
+      <button class="btn" type="submit" {% if b.busy %}disabled{% endif %}>Back up now</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <!-- ── Activity ── -->
+  <section class="pane log" id="pane-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
+    {% for e in events %}
+    <div class="row"><span class="a">{{ e.action }}</span><span class="s">{{ e.status }}</span></div>
+    {% else %}
+    <div class="row"><span class="s">No entries yet.</span></div>
+    {% endfor %}
+  </section>
+</div>
+
+<style>
+  /* primary-address hero */
+  .hero{margin-top:1.6rem; border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface);
+    box-shadow:var(--shadow); padding:1.15rem 1.3rem}
+  .hero-k{font:600 .6rem/1 var(--mono); letter-spacing:.15em; text-transform:uppercase; color:var(--dim); margin-bottom:.55rem}
+  .hero-v{font-family:var(--mono); font-size:1.05rem; word-break:break-all}
+  code.hero-v{padding:.55rem .75rem}
+  a.hero-v{color:var(--accent-2)} a.hero-v:hover{color:var(--text)}
+
+  /* tabs */
+  .tabs{display:flex; gap:.15rem; border-bottom:1px solid var(--line); margin-top:1.8rem;
+    overflow-x:auto; scrollbar-width:none}  /* scrollable on narrow screens, no visible bar */
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs [role=tab]{appearance:none; background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--muted); font:550 .86rem/1 var(--sans); padding:.65rem .85rem; cursor:pointer;
+    white-space:nowrap; transition:color .14s}
+  .tabs [role=tab]:hover{color:var(--text)}
+  .tabs [role=tab][aria-selected="true"]{color:var(--text); border-bottom-color:var(--accent)}
+  .tabs [role=tab]:focus-visible{outline:2px solid var(--accent); outline-offset:-2px; border-radius:6px}
+  .tabs .ct{display:inline-block; min-width:1.15rem; padding:.12rem .3rem; border-radius:6px; text-align:center;
+    font:600 .68rem/1 var(--mono); background:var(--surface-2); color:var(--muted); margin-left:.15rem}
+  .pane{padding-top:1.3rem}
+  .pane[hidden]{display:none}
+
+  /* nightly-restart switch + time */
+  .switch{position:relative; width:36px; height:21px; flex:none; cursor:pointer}
+  .switch input{position:absolute; opacity:0; inset:0; margin:0; cursor:pointer}
+  .switch i{position:absolute; inset:0; border-radius:999px; background:var(--surface-2);
+    border:1px solid var(--line-2); transition:background .15s, border-color .15s}
+  .switch i::after{content:""; position:absolute; top:2px; left:2px; width:15px; height:15px;
+    border-radius:50%; background:var(--muted); transition:left .15s, background .15s}
+  .switch input:checked + i{background:var(--accent-soft); border-color:var(--accent)}
+  .switch input:checked + i::after{left:17px; background:var(--accent-2)}
+  .switch input:focus-visible + i{outline:2px solid var(--accent); outline-offset:2px}
+  #restart-form input[type=time]{width:auto; padding:.4rem .55rem; font-family:var(--mono); font-size:.85rem;
+    color-scheme:dark}
+  #restart-form:not(:has(input:checked)) input[type=time]{opacity:.45}  /* dimmed until the toggle is on */
+
+  /* metrics tab: chart chrome (.tfrow/.mx-*) lives in base.html — shared with the admin Host page */
+</style>
+<script src="/static/wycharts.js"></script>
+<script>
+  // tabs: hash-linked so form posts land back on the right one (#domains, #snapshots)
+  (function(){
+    var tabs = Array.from(document.querySelectorAll('.tabs [role=tab]'));
+    function show(id, push){
+      tabs.forEach(function(t){
+        var on = t.dataset.tab === id;
+        t.setAttribute('aria-selected', on);
+        var pane = document.getElementById('pane-' + t.dataset.tab);
+        if(pane) pane.hidden = !on;
+      });
+      if(push) history.replaceState(null, '', '#' + id);
+    }
+    tabs.forEach(function(t){
+      t.addEventListener('click', function(){ show(t.dataset.tab, true); });
+      t.addEventListener('keydown', function(e){
+        if(e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        var i = tabs.indexOf(t), n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        n.focus(); show(n.dataset.tab, true);
+      });
+    });
+    var init = location.hash.slice(1);
+    {% if derr %}init = 'domains';{% endif %}
+    {% if merr %}init = 'monitoring';{% endif %}
+    if(!tabs.some(function(t){ return t.dataset.tab === init; })) init = 'access';
+    show(init, false);
+  })();
+
+  // metrics charts: lazy-init on first visit to the tab (hidden panes render at zero width)
+  (function(){
+    var done = false;
+    function init(){ if(done) return; done = true; wyMetrics(document.getElementById('metrics')); }
+    document.getElementById('tab-metrics').addEventListener('click', init);
+    if(location.hash === '#metrics') init();
+  })();
+
+  // monitoring charts: lazy-init only when a monitor exists (element present)
+  (function(){
+    var el = document.getElementById('monitor');
+    if(!el) return;
+    var done = false;
+    function init(){ if(done) return; done = true; wyMonitor(el); }
+    var tab = document.getElementById('tab-monitoring');
+    if(tab) tab.addEventListener('click', init);
+    if(location.hash === '#monitoring') init();
+  })();
+
+  // nightly restart: show the UTC time in the viewer's local time
+  (function(){
+    var out = document.getElementById('restart-local');
+    if(!out) return;
+    var t = document.querySelector('#restart-form input[type=time]');
+    function upd(){
+      var m = /^(\d\d):(\d\d)$/.exec(t.value);
+      if(!m){ out.textContent = ''; return; }
+      var d = new Date(); d.setUTCHours(+m[1], +m[2], 0, 0);
+      out.textContent = '= ' + d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + ' your time';
+    }
+    t.addEventListener('input', upd); upd();
+  })();
+
+  // "still installing" hint: count down the estimated install window, hide when it elapses
+  (function(){
+    const note = document.querySelector('.install-note');
+    if(!note) return;
+    let secs = parseInt(note.dataset.secs, 10) || 0;
+    const minEl = note.querySelector('.install-min');
+    const t = setInterval(() => {
+      secs -= 1;
+      if(secs <= 0){ note.style.display = 'none'; clearInterval(t); return; }
+      if(minEl) minEl.textContent = Math.ceil(secs / 60);
+    }, 1000);
+  })();
+</script>
+{% endblock %}
