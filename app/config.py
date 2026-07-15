@@ -1,3 +1,4 @@
+import secrets
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
@@ -11,6 +12,11 @@ class Settings(BaseSettings):
     """
 
     DATABASE_URL: str = "sqlite:///./warpyard.db"
+
+    # Signs session cookies AND password-reset tokens. Set it in prod; when unset, a
+    # random per-process secret is used (fine for dev — restarts log everyone out and
+    # void outstanding reset links).
+    SESSION_SECRET: str = ""
 
     # Product
     BASE_DOMAIN: str = "example.com"  # tenant services live at <label>.BASE_DOMAIN
@@ -100,3 +106,10 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+@lru_cache
+def session_secret() -> str:
+    """The signing secret for sessions and reset tokens — SESSION_SECRET, or one
+    random per-process value shared by every consumer (never a hardcoded constant)."""
+    return get_settings().SESSION_SECRET or secrets.token_hex(32)

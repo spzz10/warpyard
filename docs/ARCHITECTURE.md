@@ -37,7 +37,10 @@ try to be) multi-region OpenStack.
   of an unrelated service can't reach the Proxmox tokens.
 - **Worker** (`app/jobs/`): Postgres-backed job queue (`FOR UPDATE SKIP LOCKED`).
   Every lifecycle action is an idempotent state-machine job with retries; enqueue and
-  state transition commit in one transaction. See `docs/VERBS.md`.
+  state transition commit in one transaction. See `docs/VERBS.md`. **Run exactly one
+  worker process** — startup reclaims stale in-flight jobs, and console tickets are
+  held in API-process memory; neither is multi-process-safe (a deliberate
+  single-host-scale simplification).
 - **Reconciler** (`app/reconciler.py`): periodically diffs DB desired-state vs Proxmox
   actual-state. Safe drift (power state) is auto-repaired with an audit event; anything
   billing- or security-affecting is flagged, never auto-fixed.

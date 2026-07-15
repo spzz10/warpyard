@@ -1,5 +1,3 @@
-import os
-import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -8,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.config import get_settings
+from app.config import get_settings, session_secret
 from app.console import router as console_router
 from app.mcp_server import mcp, mcp_app
 from app.oauth import router as oauth_router
@@ -42,7 +40,7 @@ app = FastAPI(
 # plain-HTTP LAN access to :8000 still renders pages but won't hold a login.
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SESSION_SECRET", secrets.token_hex(32)),
+    secret_key=session_secret(),
     https_only=True,
 )
 app.include_router(instances_router)

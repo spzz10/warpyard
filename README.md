@@ -9,6 +9,13 @@ friends/community/club audience. Members sign in to a clean dashboard, click
 backups, and metrics. You provide one Proxmox host and a $5 VPS; Warpyard provides
 everything in between.
 
+![Servers dashboard](docs/img/servers.png)
+
+<p align="center">
+  <img src="docs/img/server-detail.png" width="49%" alt="Server detail page">
+  <img src="docs/img/create.png" width="49%" alt="Create a server">
+</p>
+
 ## What members get
 
 - **Servers in seconds** — cloud-init golden templates, ZFS linked clones, static IPAM

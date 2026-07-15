@@ -97,12 +97,22 @@ def main(pubkey_path: str):
                     net_mbps=1000,
                     price_cents=12800,
                 ),
-                # OS images. Docker & push-to-deploy are add-ons (deploy/addons/setup.sh),
-                # runnable on any server — not images. See docs/GAME-IMAGES.md.
+                # OS images. Docker & push-to-deploy can also be added to any OS server
+                # post-boot via deploy/addons/setup.sh. See docs/GAME-IMAGES.md.
                 Image(
                     slug="ubuntu-24.04", name="Ubuntu 24.04 LTS", distro="ubuntu", version="24.04", template_vmid=9012
                 ),
                 Image(slug="debian-12", name="Debian 12", distro="debian", version="12", template_vmid=9013),
+                # push-to-deploy golden image (docs/DEPLOY-IMAGE.md) — the Deploy card keys
+                # off this exact slug (service.DEPLOY_IMAGE_SLUG)
+                Image(
+                    slug="web-2404",
+                    name="Push-to-deploy (Caddy + Node)",
+                    distro="ubuntu",
+                    version="24.04",
+                    template_vmid=9002,
+                    category="app",
+                ),
                 # game servers (LinuxGSM) — see docs/GAME-IMAGES.md. default_plan pre-sizes the VM.
                 Image(
                     slug="minecraft",

@@ -3,7 +3,7 @@ cookie. Reuses the same domain logic as the JSON API; power actions post back HT
 fragments so the server cards update in place."""
 
 import contextlib
-import os
+import hmac
 import re
 from datetime import UTC
 from pathlib import Path
@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import favicon_gen, hoststats, mailer, poppaping, security, service, states
-from app.config import get_settings
+from app.config import get_settings, session_secret
 from app.database import get_db
 from app.jobs import queue
 from app.models import BoardComment, Event, Image, Instance, Invite, InviteRequest, Plan, SshKey, User, utcnow
@@ -94,7 +94,7 @@ def login(
             {"error": "That email and password don't match an account.", "next": _safe_next(next)},
             status_code=401,
         )
-    if upgraded:  # transparently migrate legacy sha256 → bcrypt on successful login
+    if upgraded:  # transparently persist a re-hash (bcrypt cost bump)
         user.password_hash = upgraded
         db.commit()
     request.session["uid"] = user.id
@@ -253,8 +253,9 @@ RESET_MAX_AGE = 3600  # 1 hour
 
 
 def _reset_serializer() -> URLSafeTimedSerializer:
-    secret = os.environ.get("SESSION_SECRET") or "warpyard-dev-secret"
-    return URLSafeTimedSerializer(secret, salt="pw-reset")
+    # same secret as the session middleware — never a hardcoded fallback (this repo
+    # is public; a constant here would let anyone forge reset tokens)
+    return URLSafeTimedSerializer(session_secret(), salt="pw-reset")
 
 
 def _reset_token(user: User) -> str:
@@ -268,7 +269,9 @@ def _reset_user(db: Session, token: str) -> User | None:
     except BadData:
         return None
     user = db.get(User, data.get("uid"))
-    if not user or user.status != "active" or user.password_hash[-16:] != data.get("fp"):
+    if not user or user.status != "active":
+        return None
+    if not hmac.compare_digest(user.password_hash[-16:], str(data.get("fp") or "")):
         return None
     return user
 

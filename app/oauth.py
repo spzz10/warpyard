@@ -4,6 +4,7 @@ where user sessions already exist; the MCP resource server validates the tokens 
 
 import base64
 import hashlib
+import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode, urlparse
@@ -211,7 +212,7 @@ def token(
     if not row or row.used or row.client_id != client_id or row.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         return JSONResponse({"error": "invalid_grant"}, status_code=400)
     # PKCE: base64url(sha256(verifier)) must equal the stored challenge
-    if _b64(hashlib.sha256(code_verifier.encode()).digest()) != row.code_challenge:
+    if not hmac.compare_digest(_b64(hashlib.sha256(code_verifier.encode()).digest()), row.code_challenge):
         return JSONResponse({"error": "invalid_grant", "error_description": "PKCE failed"}, status_code=400)
     row.used = True
     access = "wyt_" + secrets.token_urlsafe(32)

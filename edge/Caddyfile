@@ -39,19 +39,14 @@
 	redir https://{host}{uri} permanent
 }
 
-# marketing landing page
+# apex — redirect to the dashboard. (If you build a landing page, serve it here
+# instead: root * /etc/caddy/site + file_server.)
 example.com {
 	tls {
 		on_demand
 	}
 	import hardened
-	root * /etc/caddy/site
-	redir /favicon.ico /favicon.svg 308
-	file_server
-	handle_errors {
-		rewrite * /404.html
-		file_server
-	}
+	redir https://app.example.com{uri} permanent
 }
 
 # common typed entry point — send www to the apex

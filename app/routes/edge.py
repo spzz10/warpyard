@@ -8,6 +8,8 @@ HTTP routes come from `http_routes`; raw TCP/UDP forwards from `edge_mappings`
 (applied by the agent via a layer4 config — HTTP is what ships first).
 """
 
+import hmac
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,7 +24,7 @@ router = APIRouter(prefix="/edge", tags=["edge"])
 
 def _auth(authorization: str = Header(None)):
     token = get_settings().EDGE_SYNC_TOKEN
-    if not token or authorization != f"Bearer {token}":
+    if not token or not hmac.compare_digest(authorization or "", f"Bearer {token}"):
         raise HTTPException(401, "bad edge sync token")
 
 

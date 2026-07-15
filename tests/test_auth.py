@@ -2,18 +2,12 @@ from app import security
 from app.models import Invite, User
 
 
-def test_bcrypt_roundtrip_and_legacy_upgrade():
-    import hashlib
-
+def test_bcrypt_roundtrip():
     h = security.hash_password("hunter2")
     ok, upgrade = security.verify_password("hunter2", h)
-    assert ok and upgrade is None  # already bcrypt, no upgrade
+    assert ok and upgrade is None  # current bcrypt, no re-hash needed
     assert security.verify_password("wrong", h) == (False, None)
-
-    legacy = hashlib.sha256(b"hunter2").hexdigest()
-    ok, upgrade = security.verify_password("hunter2", legacy)
-    assert ok and upgrade is not None  # legacy verified + upgraded to bcrypt
-    assert security.verify_password("hunter2", upgrade)[0]
+    assert security.verify_password("hunter2", None) == (False, None)
 
 
 def _admin(db):

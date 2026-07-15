@@ -90,19 +90,33 @@ Sanity check: `curl http://<cp-ip>:8000/healthz` → `{"status":"ok"}`, and log 
    your WG port udp), fail2ban, unattended-upgrades.
 2. Bring up WireGuard (`wg-quick@wg0`) and confirm you can `curl <cp-ip>:8000/healthz`
    across the tunnel.
-3. Install Caddy **with the caddy-l4 module** (build via `xcaddy` or download with the
-   module from Caddy's build service). Install `edge/Caddyfile` (replace `example.com`
-   with your domain and `<control-plane-ip>` with the CP address), plus
-   `mkdir -p /etc/caddy/routes.d /etc/caddy/layer4.d /etc/caddy/welcome` and
-   `edge/welcome/index.html` (same substitutions).
-4. Install `socat`, then the two services:
-   - `warpyard-authorizer` — the on-demand-TLS gate on 127.0.0.1:9280 (approves cert
-     issuance only for hosts with a live route).
-   - `warpyard-edge-agent` — `edge/warpyard-edge-agent.py` with env
-     `WARPYARD_CP_URL=http://<cp-ip>:8000`, `WARPYARD_EDGE_TOKEN=<EDGE_SYNC_TOKEN>`,
-     `WARPYARD_CP_PROXY=<cp-ip>:8000`. It renders routes, reloads Caddy, and manages
-     the per-server socat forward units + their UFW rules.
-5. `https://app.<domain>` should now serve the dashboard through the edge.
+3. Generate the edge sync secret once — `openssl rand -hex 24` — and put the **same
+   value** in the CP's `.env.local` (`EDGE_SYNC_TOKEN=`) and the agent unit below.
+4. Install Caddy **with the caddy-l4 module** (build via `xcaddy` or download with the
+   module from Caddy's build service), then:
+
+   ```bash
+   # config (replace example.com with your domain, <control-plane-ip> with the CP)
+   sudo cp edge/Caddyfile /etc/caddy/Caddyfile
+   sudo mkdir -p /etc/caddy/routes.d /etc/caddy/layer4.d /etc/caddy/welcome
+   sudo cp edge/welcome/index.html /etc/caddy/welcome/   # same substitutions
+
+   # the two platform services (paths match the units' ExecStart)
+   sudo apt install -y socat
+   sudo cp edge/warpyard-authorizer edge/warpyard-edge-agent.py /usr/local/bin/
+   sudo mv /usr/local/bin/warpyard-edge-agent.py /usr/local/bin/warpyard-edge-agent
+   sudo chmod 755 /usr/local/bin/warpyard-authorizer /usr/local/bin/warpyard-edge-agent
+   sudo cp edge/systemd/*.service /etc/systemd/system/
+   # edit both units: WARPYARD_BASE_DOMAIN, WARPYARD_CP_URL, WARPYARD_EDGE_TOKEN
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now warpyard-authorizer warpyard-edge-agent caddy
+   ```
+
+   The authorizer gates on-demand cert issuance (only hosts with a live route);
+   the agent renders routes, reloads Caddy, and manages the per-server socat
+   forward units + their UFW rules.
+5. `https://app.<domain>` should now serve the dashboard through the edge (the apex
+   redirects there; swap in your own landing page in the Caddyfile if you want one).
 
 ## 6. First server
 

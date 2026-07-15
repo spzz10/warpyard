@@ -237,8 +237,6 @@ def create_server(
     tls_passthrough: bool | None = None,
     encrypted: bool = False,
 ) -> dict:
-    import re
-
     name = (name or "").strip().lower()
     if not re.match(LABEL_RE, name):
         raise ServiceError(422, "Name must be lowercase letters, digits and hyphens (max 63).")

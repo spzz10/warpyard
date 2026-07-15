@@ -206,8 +206,9 @@ class Instance(Base):
     tls_passthrough: Mapped[bool] = mapped_column(Boolean, default=False)
     # True = disk is on the ZFS-encrypted pool (aes-256-gcm). Full-clone only (slower create).
     encrypted: Mapped[bool] = mapped_column(Boolean, default=False)
-    # root password for CONSOLE login (SSH is key-based). Shown to the owner only.
-    # TODO(hardening): encrypt at rest; it's the tenant's own VM credential.
+    # UNUSED — always NULL. The console auto-logs-in via serial getty (see docs/PVE-SETUP.md)
+    # and SSH is key-based, so no root password exists anywhere. Column kept for schema
+    # parity with the migration chain; a drop migration is tracked upstream.
     root_password: Mapped[str | None] = mapped_column(String(64))
     # Backups add-on: nightly vzdump to PBS + on-demand. Off by default.
     backups_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
